@@ -22,7 +22,9 @@ import com.sun.jdi.Value;
 import com.sun.jdi.VirtualMachine;
 import com.sun.jdi.VMDisconnectedException;
 import com.sun.jdi.connect.Connector;
+import com.sun.jdi.connect.IllegalConnectorArgumentsException;
 import com.sun.jdi.connect.LaunchingConnector;
+import com.sun.jdi.connect.VMStartException;
 import com.sun.jdi.event.ClassPrepareEvent;
 import com.sun.jdi.event.Event;
 import com.sun.jdi.event.EventQueue;
@@ -81,10 +83,8 @@ public class JavaTraceRunner implements LanguageRunner {
             code = "public class Main {\n" + code + "\n}";
         }
 
-        // If className is Solution, ensure auxiliary classes are not declared public in the same file
-        if ("Solution".equals(className)) {
-            code = code.replaceAll("\\bpublic\\s+class\\s+(TreeNode|ListNode|Node|Pair)\\b", "class $1");
-        }
+        // Ensure any auxiliary classes/records/interfaces in the file are not declared public (Java requires public class to match file name)
+        code = code.replaceAll("\\bpublic\\s+(class|record|interface|enum)\\s+(?!" + Pattern.quote(className) + "\\b)([A-Za-z0-9_]+)", "$1 $2");
 
         Path tempDir = Files.createTempDirectory("dsa_java_");
         Path sourceFile = tempDir.resolve(className + ".java");
@@ -130,7 +130,7 @@ public class JavaTraceRunner implements LanguageRunner {
 
         LaunchingConnector connector = Bootstrap.virtualMachineManager().defaultConnector();
         Map<String, Connector.Argument> arguments = connector.defaultArguments();
-        arguments.get("options").setValue("-cp " + classpathDir.toAbsolutePath());
+        arguments.get("options").setValue("-Dfile.encoding=UTF-8 -cp " + classpathDir.toAbsolutePath());
         arguments.get("main").setValue(className);
         arguments.get("suspend").setValue("true");
 
@@ -312,6 +312,25 @@ public class JavaTraceRunner implements LanguageRunner {
 
         } catch (VMDisconnectedException e) {
             // Normal program termination
+        } catch (VMStartException e) {
+            status = "RUNTIME_ERROR";
+            String procErr = "";
+            try {
+                if (e.process() != null) {
+                    byte[] errBytes = e.process().getErrorStream().readAllBytes();
+                    if (errBytes.length > 0) {
+                        procErr = new String(errBytes, StandardCharsets.UTF_8).trim();
+                    }
+                }
+            } catch (Exception ignored) {}
+            if (!procErr.isEmpty()) {
+                errorMessage = procErr;
+            } else {
+                errorMessage = "Failed to launch Java debuggee process: " + e.getMessage();
+            }
+        } catch (IllegalConnectorArgumentsException e) {
+            status = "RUNTIME_ERROR";
+            errorMessage = "JDI connector argument error: " + e.getMessage();
         } catch (Exception e) {
             status = "RUNTIME_ERROR";
             errorMessage = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();

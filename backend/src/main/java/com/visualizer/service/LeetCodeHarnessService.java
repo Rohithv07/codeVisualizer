@@ -19,6 +19,11 @@ public class LeetCodeHarnessService {
                    .replaceAll("//.*", " ");
     }
 
+    public static boolean containsWord(String text, String word) {
+        if (text == null) return false;
+        return Pattern.compile("\\b" + Pattern.quote(word) + "\\b").matcher(text).find();
+    }
+
     public boolean hasMainMethod(String code) {
         if (code == null) return false;
         String clean = stripComments(code);
@@ -64,7 +69,7 @@ public class LeetCodeHarnessService {
         boolean hasListNode = cleanCode.contains("class ListNode") || cleanCode.contains("struct ListNode");
         boolean hasTreeNode = cleanCode.contains("class TreeNode") || cleanCode.contains("struct TreeNode");
         boolean hasNode = cleanCode.contains("class Node") || cleanCode.contains("struct Node");
-        boolean usesNode = paramsStr.matches(".*\\bNode\\b.*") || returnType.matches(".*\\bNode\\b.*");
+        boolean usesNode = containsWord(paramsStr, "Node") || containsWord(returnType, "Node");
         boolean isNaryTree = cleanCode.contains("children") || usesNode;
         boolean userTreeNodeHasLeft = hasTreeNode && userTreeNodeHasLeft(cleanCode);
 
@@ -94,7 +99,7 @@ public class LeetCodeHarnessService {
             mainMethod.append("            System.out.println(Arrays.toString(__arr));\n");
             mainMethod.append("        } else if (__result instanceof Object[] __oa) {\n");
             mainMethod.append("            System.out.println(Arrays.deepToString(__oa));\n");
-            if (cleanCode.contains("ListNode")) {
+            if (containsWord(cleanCode, "ListNode")) {
                 mainMethod.append("        } else if (__result instanceof ListNode __ln) {\n");
                 mainMethod.append("            StringBuilder __sb = new StringBuilder();\n");
                 mainMethod.append("            while (__ln != null) {\n");
@@ -104,11 +109,11 @@ public class LeetCodeHarnessService {
                 mainMethod.append("            }\n");
                 mainMethod.append("            System.out.println(__sb.toString());\n");
             }
-            if (cleanCode.contains("TreeNode")) {
+            if (containsWord(cleanCode, "TreeNode")) {
                 mainMethod.append("        } else if (__result instanceof TreeNode __tn) {\n");
                 mainMethod.append("            System.out.println(\"TreeNode(val=\" + __tn.val + \")\");\n");
             }
-            if (usesNode || cleanCode.contains("Node")) {
+            if (usesNode || containsWord(cleanCode, "Node")) {
                 mainMethod.append("        } else if (__result instanceof Node __nd) {\n");
                 mainMethod.append("            System.out.println(\"Node(val=\" + __nd.val + \")\");\n");
             }
@@ -119,7 +124,7 @@ public class LeetCodeHarnessService {
         mainMethod.append("    }\n\n");
 
         // Helper static builder for ListNode
-        if (cleanCode.contains("ListNode")) {
+        if (containsWord(cleanCode, "ListNode")) {
             mainMethod.append("    public static ListNode __buildList(int[] vals) {\n");
             mainMethod.append("        if (vals == null || vals.length == 0) return null;\n");
             mainMethod.append("        ListNode dummy = new ListNode(0);\n");
@@ -133,7 +138,7 @@ public class LeetCodeHarnessService {
         }
 
         // Helper static builder for Node (N-ary tree)
-        if (usesNode || cleanCode.contains("Node")) {
+        if (usesNode || containsWord(cleanCode, "Node")) {
             mainMethod.append("    public static Node __buildNaryNode(Integer[] vals) {\n");
             mainMethod.append("        if (vals == null || vals.length == 0 || vals[0] == null) return null;\n");
             mainMethod.append("        Node root = new Node(vals[0]);\n");
@@ -160,7 +165,7 @@ public class LeetCodeHarnessService {
         }
 
         // Helper static builders for TreeNode
-        if (cleanCode.contains("TreeNode")) {
+        if (containsWord(cleanCode, "TreeNode")) {
             boolean shouldGenerateBinaryBuilder = !hasTreeNode || userTreeNodeHasLeft;
             boolean shouldGenerateNaryBuilder = !hasTreeNode || isNaryTree;
 
@@ -217,7 +222,7 @@ public class LeetCodeHarnessService {
 
         // Append standard LeetCode ListNode / TreeNode definitions if not already defined in cleanCode
         StringBuilder definitions = new StringBuilder();
-        if (cleanCode.contains("ListNode") && !hasListNode) {
+        if (containsWord(cleanCode, "ListNode") && !hasListNode) {
             definitions.append("\nclass ListNode {\n")
                     .append("    public int val;\n")
                     .append("    public ListNode next;\n")
@@ -226,7 +231,7 @@ public class LeetCodeHarnessService {
                     .append("    public ListNode(int val, ListNode next) { this.val = val; this.next = next; }\n")
                     .append("}\n");
         }
-        if (cleanCode.contains("TreeNode") && !hasTreeNode) {
+        if (containsWord(cleanCode, "TreeNode") && !hasTreeNode) {
             definitions.append("\nclass TreeNode {\n")
                     .append("    public int val;\n")
                     .append("    public TreeNode left;\n")
@@ -242,7 +247,7 @@ public class LeetCodeHarnessService {
                     .append("    }\n")
                     .append("}\n");
         }
-        if ((usesNode || cleanCode.contains("Node")) && !hasNode) {
+        if ((usesNode || containsWord(cleanCode, "Node")) && !hasNode) {
             definitions.append("\nclass Node {\n")
                     .append("    public int val;\n")
                     .append("    public List<Node> children = new ArrayList<>();\n")
@@ -298,7 +303,7 @@ public class LeetCodeHarnessService {
         StringBuilder helpers = new StringBuilder();
 
         // Injected definitions for C++
-        if (cleanCode.contains("ListNode") && !hasListNode) {
+        if (containsWord(cleanCode, "ListNode") && !hasListNode) {
             helpers.append("struct ListNode {\n")
                     .append("    int val;\n")
                     .append("    ListNode *next;\n")
@@ -307,7 +312,7 @@ public class LeetCodeHarnessService {
                     .append("    ListNode(int x, ListNode *next) : val(x), next(next) {}\n")
                     .append("};\n\n");
         }
-        if (cleanCode.contains("TreeNode") && !hasTreeNode) {
+        if (containsWord(cleanCode, "TreeNode") && !hasTreeNode) {
             helpers.append("struct TreeNode {\n")
                     .append("    int val;\n")
                     .append("    TreeNode *left;\n")
@@ -319,7 +324,7 @@ public class LeetCodeHarnessService {
                     .append("    TreeNode(int x, vector<TreeNode*> _children) : val(x), left(nullptr), right(nullptr), children(_children) {}\n")
                     .append("};\n\n");
         }
-        if ((usesNode || cleanCode.contains("Node")) && !hasNode) {
+        if ((usesNode || containsWord(cleanCode, "Node")) && !hasNode) {
             helpers.append("class Node {\n")
                     .append("public:\n")
                     .append("    int val;\n")
@@ -331,7 +336,7 @@ public class LeetCodeHarnessService {
         }
 
         // Builders for C++
-        if (cleanCode.contains("ListNode")) {
+        if (containsWord(cleanCode, "ListNode")) {
             helpers.append("ListNode* __buildList(const vector<int>& vals) {\n")
                     .append("    if (vals.empty()) return nullptr;\n")
                     .append("    ListNode dummy(0);\n")
@@ -343,7 +348,7 @@ public class LeetCodeHarnessService {
                     .append("    return dummy.next;\n")
                     .append("}\n\n");
         }
-        if (cleanCode.contains("TreeNode")) {
+        if (containsWord(cleanCode, "TreeNode")) {
             helpers.append("TreeNode* __buildTree(const vector<string>& vals) {\n")
                     .append("    if (vals.empty() || vals[0] == \"null\" || vals[0] == \"None\") return nullptr;\n")
                     .append("    TreeNode* root = new TreeNode(stoi(vals[0]));\n")
@@ -389,7 +394,7 @@ public class LeetCodeHarnessService {
                     .append("}\n\n");
         }
 
-        if (usesNode || cleanCode.contains("Node")) {
+        if (usesNode || containsWord(cleanCode, "Node")) {
             helpers.append("Node* __buildNaryNode(const vector<string>& vals) {\n")
                     .append("    if (vals.empty() || vals[0] == \"null\" || vals[0] == \"None\") return nullptr;\n")
                     .append("    Node* root = new Node(stoi(vals[0]));\n")
@@ -432,7 +437,7 @@ public class LeetCodeHarnessService {
             mainFunc.append("    __sol.").append(methodName).append("(")
                     .append(String.join(", ", argNames)).append(");\n");
             mainFunc.append("    cout << \"Completed\" << endl;\n");
-        } else if (returnType.contains("ListNode")) {
+        } else if (containsWord(returnType, "ListNode")) {
             mainFunc.append("    ListNode* __result = __sol.").append(methodName).append("(")
                     .append(String.join(", ", argNames)).append(");\n");
             mainFunc.append("    ListNode* __curr = __result;\n");
@@ -450,12 +455,12 @@ public class LeetCodeHarnessService {
             mainFunc.append("        cout << __result[i] << (i + 1 < __result.size() ? \", \" : \"\");\n");
             mainFunc.append("    }\n");
             mainFunc.append("    cout << \"]\" << endl;\n");
-        } else if (returnType.contains("TreeNode")) {
+        } else if (containsWord(returnType, "TreeNode")) {
             mainFunc.append("    TreeNode* __result = __sol.").append(methodName).append("(")
                     .append(String.join(", ", argNames)).append(");\n");
             mainFunc.append("    if (__result) cout << \"TreeNode(val=\" << __result->val << \")\" << endl;\n");
             mainFunc.append("    else cout << \"null\" << endl;\n");
-        } else if (returnType.contains("Node")) {
+        } else if (containsWord(returnType, "Node")) {
             mainFunc.append("    Node* __result = __sol.").append(methodName).append("(")
                     .append(String.join(", ", argNames)).append(");\n");
             mainFunc.append("    if (__result) cout << \"Node(val=\" << __result->val << \")\" << endl;\n");

@@ -75,20 +75,88 @@ public class LeetCodeHarnessService {
             mainMethod.append("            System.out.println(Arrays.toString(__arr));\n");
             mainMethod.append("        } else if (__result instanceof Object[] __oa) {\n");
             mainMethod.append("            System.out.println(Arrays.deepToString(__oa));\n");
+            mainMethod.append("        } else if (__result instanceof ListNode __ln) {\n");
+            mainMethod.append("            StringBuilder __sb = new StringBuilder();\n");
+            mainMethod.append("            while (__ln != null) {\n");
+            mainMethod.append("                __sb.append(__ln.val);\n");
+            mainMethod.append("                if (__ln.next != null) __sb.append(\" -> \");\n");
+            mainMethod.append("                __ln = __ln.next;\n");
+            mainMethod.append("            }\n");
+            mainMethod.append("            System.out.println(__sb.toString());\n");
             mainMethod.append("        } else {\n");
             mainMethod.append("            System.out.println(__result);\n");
             mainMethod.append("        }\n");
         }
+        mainMethod.append("    }\n\n");
+
+        // Helper static builders for ListNode & TreeNode
+        mainMethod.append("    public static ListNode __buildList(int[] vals) {\n");
+        mainMethod.append("        if (vals == null || vals.length == 0) return null;\n");
+        mainMethod.append("        ListNode dummy = new ListNode(0);\n");
+        mainMethod.append("        ListNode curr = dummy;\n");
+        mainMethod.append("        for (int v : vals) {\n");
+        mainMethod.append("            curr.next = new ListNode(v);\n");
+        mainMethod.append("            curr = curr.next;\n");
+        mainMethod.append("        }\n");
+        mainMethod.append("        return dummy.next;\n");
+        mainMethod.append("    }\n\n");
+
+        mainMethod.append("    public static TreeNode __buildTree(Integer[] vals) {\n");
+        mainMethod.append("        if (vals == null || vals.length == 0 || vals[0] == null) return null;\n");
+        mainMethod.append("        TreeNode root = new TreeNode(vals[0]);\n");
+        mainMethod.append("        Queue<TreeNode> queue = new LinkedList<>();\n");
+        mainMethod.append("        queue.offer(root);\n");
+        mainMethod.append("        int i = 1;\n");
+        mainMethod.append("        while (!queue.isEmpty() && i < vals.length) {\n");
+        mainMethod.append("            TreeNode curr = queue.poll();\n");
+        mainMethod.append("            if (i < vals.length && vals[i] != null) {\n");
+        mainMethod.append("                curr.left = new TreeNode(vals[i]);\n");
+        mainMethod.append("                queue.offer(curr.left);\n");
+        mainMethod.append("            }\n");
+        mainMethod.append("            i++;\n");
+        mainMethod.append("            if (i < vals.length && vals[i] != null) {\n");
+        mainMethod.append("                curr.right = new TreeNode(vals[i]);\n");
+        mainMethod.append("                queue.offer(curr.right);\n");
+        mainMethod.append("            }\n");
+        mainMethod.append("            i++;\n");
+        mainMethod.append("        }\n");
+        mainMethod.append("        return root;\n");
         mainMethod.append("    }\n");
+
+        // Append standard LeetCode ListNode / TreeNode definitions if not already in code
+        StringBuilder definitions = new StringBuilder();
+        if (!code.contains("class ListNode")) {
+            definitions.append("\nclass ListNode {\n")
+                    .append("    public int val;\n")
+                    .append("    public ListNode next;\n")
+                    .append("    public ListNode() {}\n")
+                    .append("    public ListNode(int val) { this.val = val; }\n")
+                    .append("    public ListNode(int val, ListNode next) { this.val = val; this.next = next; }\n")
+                    .append("}\n");
+        }
+        if (!code.contains("class TreeNode")) {
+            definitions.append("\nclass TreeNode {\n")
+                    .append("    public int val;\n")
+                    .append("    public TreeNode left;\n")
+                    .append("    public TreeNode right;\n")
+                    .append("    public TreeNode() {}\n")
+                    .append("    public TreeNode(int val) { this.val = val; }\n")
+                    .append("    public TreeNode(int val, TreeNode left, TreeNode right) {\n")
+                    .append("        this.val = val;\n")
+                    .append("        this.left = left;\n")
+                    .append("        this.right = right;\n")
+                    .append("    }\n")
+                    .append("}\n");
+        }
 
         // Insert specifically before the closing brace of class Solution
         int solutionClosingBrace = findClassClosingBrace(code, "Solution");
         if (solutionClosingBrace != -1) {
             String prefix = "import java.util.*; import java.io.*; ";
-            return prefix + code.substring(0, solutionClosingBrace) + mainMethod + code.substring(solutionClosingBrace);
+            return prefix + code.substring(0, solutionClosingBrace) + mainMethod + code.substring(solutionClosingBrace) + definitions;
         }
 
-        return code;
+        return code + definitions;
     }
 
     /**
@@ -333,6 +401,24 @@ public class LeetCodeHarnessService {
                 return "new ArrayList<>(List.of(" + inner + "))";
             }
             return "new ArrayList<>()";
+        }
+
+        // LeetCode ListNode
+        if (cleanType.equals("ListNode")) {
+            if (raw != null && raw.startsWith("[") && raw.endsWith("]")) {
+                String inner = raw.substring(1, raw.length() - 1).trim();
+                return inner.isEmpty() ? "null" : "__buildList(new int[]{" + inner + "})";
+            }
+            return "null";
+        }
+
+        // LeetCode TreeNode
+        if (cleanType.equals("TreeNode")) {
+            if (raw != null && raw.startsWith("[") && raw.endsWith("]")) {
+                String inner = raw.substring(1, raw.length() - 1).trim();
+                return inner.isEmpty() ? "null" : "__buildTree(new Integer[]{" + inner + "})";
+            }
+            return "null";
         }
 
         return "null";

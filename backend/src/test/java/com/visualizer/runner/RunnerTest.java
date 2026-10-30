@@ -286,4 +286,53 @@ public class RunnerTest {
                                s.variables().get("arr").values().size() == 7);
         assertTrue(found7ElementArray, "Array variable was not initialized with the 7 user-provided elements");
     }
+
+    @Test
+    public void testLeetCodeJavaReverseLinkedList() throws Exception {
+        // Pure LeetCode solution with no main and NO ListNode class definition provided
+        String code = "class Solution {\n" +
+                "    public ListNode reverseList(ListNode head) {\n" +
+                "        ListNode prev = null;\n" +
+                "        ListNode curr = head;\n" +
+                "        while (curr != null) {\n" +
+                "            ListNode next = curr.next;\n" +
+                "            curr.next = prev;\n" +
+                "            prev = curr;\n" +
+                "            curr = next;\n" +
+                "        }\n" +
+                "        return prev;\n" +
+                "    }\n" +
+                "}";
+        String input = "head = [1, 2, 3, 4, 5]";
+
+        TraceRequest request = new TraceRequest("java", code, input, 300);
+        TraceResponse response = visualizerService.trace(request);
+
+        assertNotNull(response);
+        assertEquals("SUCCESS", response.status(), "reverseList failed: " + response.error());
+        assertTrue(response.totalSteps() > 10);
+        assertTrue(response.stdout().contains("5 -> 4 -> 3 -> 2 -> 1"));
+    }
+
+    @Test
+    public void testLeetCodeJavaBinaryTreeMaxDepth() throws Exception {
+        // Pure LeetCode solution with no main and NO TreeNode class definition provided
+        String code = "class Solution {\n" +
+                "    public int maxDepth(TreeNode root) {\n" +
+                "        if (root == null) return 0;\n" +
+                "        int left = maxDepth(root.left);\n" +
+                "        int right = maxDepth(root.right);\n" +
+                "        return Math.max(left, right) + 1;\n" +
+                "    }\n" +
+                "}";
+        String input = "root = [3, 9, 20, null, null, 15, 7]";
+
+        TraceRequest request = new TraceRequest("java", code, input, 100);
+        TraceResponse response = visualizerService.trace(request);
+
+        assertNotNull(response);
+        assertEquals("SUCCESS", response.status(), "maxDepth failed: " + response.error());
+        assertTrue(response.totalSteps() > 10);
+        assertTrue(response.stdout().contains("3"));
+    }
 }

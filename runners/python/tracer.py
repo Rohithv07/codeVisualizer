@@ -13,7 +13,7 @@ from typing import Any, Dict, List, Optional
 MAX_STEPS_DEFAULT = 1000
 MAX_COLLECTION_SIZE = 50
 MAX_STRING_LEN = 100
-MAX_OBJECT_DEPTH = 3
+MAX_OBJECT_DEPTH = 8
 
 class StepLimitExceeded(Exception):
     pass

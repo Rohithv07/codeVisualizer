@@ -29,7 +29,7 @@ MAX_STEPS_DEFAULT = 1000
 MAX_COLLECTION_SIZE = 50
 
 def serialize_lldb_value(val: Any, depth: int = 0) -> Dict[str, Any]:
-    if depth > 3 or not val or not val.IsValid():
+    if depth > 8 or not val or not val.IsValid():
         return {"type": "unknown", "repr": "?"}
 
     type_name = val.GetTypeName() or "unknown"

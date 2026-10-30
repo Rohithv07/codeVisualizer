@@ -363,8 +363,10 @@ public class JavaTraceRunner implements LanguageRunner {
         );
     }
 
+    private static final int MAX_OBJECT_DEPTH = 8;
+
     private VariableValue serializeJdiValue(Value val, int depth) {
-        if (depth > 3) {
+        if (depth > MAX_OBJECT_DEPTH) {
             return new VariableValue("truncated", null, "...");
         }
 

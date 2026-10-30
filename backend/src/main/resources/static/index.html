@@ -201,7 +201,37 @@
             <!-- Visualization Tabs & Content -->
             <div class="flex-1 overflow-y-auto p-4 space-y-4">
                 
-                <!-- 1. Array & Pointers Visualizer -->
+                <!-- 1. Binary & N-ary Tree Visualizer -->
+                <div id="treeVisualizerCard" class="bg-slate-900 border border-slate-800 rounded-lg p-4 shadow-sm hidden">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-2 mb-2">
+                        <div class="flex items-center gap-2">
+                            <h3 class="text-xs font-bold text-sky-400 uppercase tracking-wider flex items-center gap-1.5">
+                                <i data-lucide="git-fork" class="w-3.5 h-3.5"></i> Tree Visualizer
+                            </h3>
+                            <span id="treeTypeBadge" class="text-[10px] font-mono px-2 py-0.5 rounded bg-sky-500/10 text-sky-400 border border-sky-500/20">Binary Tree</span>
+                        </div>
+                        <div id="treeStatusBadge" class="text-xs font-mono px-2.5 py-1 rounded-full bg-slate-800 text-slate-300 border border-slate-700 flex items-center gap-1.5">
+                            <!-- Dynamic recursion state -->
+                        </div>
+                    </div>
+                    <!-- Legend -->
+                    <div class="flex items-center gap-4 text-[10px] font-medium text-slate-400 pb-2 mb-2 border-b border-slate-800/60">
+                        <span class="flex items-center gap-1.5">
+                            <span class="w-2.5 h-2.5 rounded-full bg-amber-400 ring-2 ring-amber-400/30"></span> Current Active Node
+                        </span>
+                        <span class="flex items-center gap-1.5">
+                            <span class="w-2.5 h-2.5 rounded-full bg-sky-400 ring-2 ring-sky-400/30"></span> Call Stack Path
+                        </span>
+                        <span class="flex items-center gap-1.5">
+                            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/30"></span> Visited
+                        </span>
+                    </div>
+                    <div id="treeContainer" class="flex justify-center items-start overflow-x-auto py-4 px-2 min-h-[160px]">
+                        <!-- Dynamic Tree injected here -->
+                    </div>
+                </div>
+
+                <!-- 2. Array & Pointers Visualizer -->
                 <div id="arrayVisualizerCard" class="bg-slate-900 border border-slate-800 rounded-lg p-4 shadow-sm hidden">
                     <div class="flex items-center justify-between border-b border-slate-800 pb-2 mb-3">
                         <h3 class="text-xs font-bold text-sky-400 uppercase tracking-wider flex items-center gap-1.5">
@@ -215,7 +245,7 @@
                     </div>
                 </div>
 
-                <!-- 2. 2D Grid / Matrix Visualizer -->
+                <!-- 3. 2D Grid / Matrix Visualizer -->
                 <div id="matrixVisualizerCard" class="bg-slate-900 border border-slate-800 rounded-lg p-4 shadow-sm hidden">
                     <div class="flex items-center justify-between border-b border-slate-800 pb-2 mb-3">
                         <h3 class="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
@@ -228,7 +258,7 @@
                     </div>
                 </div>
 
-                <!-- 3. Linked List Visualizer -->
+                <!-- 4. Linked List Visualizer -->
                 <div id="linkedListVisualizerCard" class="bg-slate-900 border border-slate-800 rounded-lg p-4 shadow-sm hidden">
                     <div class="flex items-center justify-between border-b border-slate-800 pb-2 mb-3">
                         <h3 class="text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
@@ -238,19 +268,6 @@
                     </div>
                     <div id="linkedListContainer" class="flex items-center space-x-3 overflow-x-auto py-4 px-2">
                         <!-- Dynamic Linked List Nodes injected here -->
-                    </div>
-                </div>
-
-                <!-- 4. Binary Tree Visualizer -->
-                <div id="treeVisualizerCard" class="bg-slate-900 border border-slate-800 rounded-lg p-4 shadow-sm hidden">
-                    <div class="flex items-center justify-between border-b border-slate-800 pb-2 mb-3">
-                        <h3 class="text-xs font-bold text-sky-400 uppercase tracking-wider flex items-center gap-1.5">
-                            <i data-lucide="git-fork" class="w-3.5 h-3.5"></i> Binary Tree Visualizer
-                        </h3>
-                        <span id="treeVarName" class="text-xs font-mono text-slate-400"></span>
-                    </div>
-                    <div id="treeContainer" class="flex justify-center items-center overflow-x-auto py-4">
-                        <!-- Dynamic Tree injected here -->
                     </div>
                 </div>
 
@@ -377,7 +394,8 @@ public:
         const linkedListVarName = document.getElementById('linkedListVarName');
         const treeVisualizerCard = document.getElementById('treeVisualizerCard');
         const treeContainer = document.getElementById('treeContainer');
-        const treeVarName = document.getElementById('treeVarName');
+        const treeStatusBadge = document.getElementById('treeStatusBadge');
+        const treeTypeBadge = document.getElementById('treeTypeBadge');
         const graphVisualizerCard = document.getElementById('graphVisualizerCard');
         const graphContainer = document.getElementById('graphContainer');
         const graphVarName = document.getElementById('graphVarName');
@@ -455,7 +473,10 @@ public:
             // Render Variables Table
             renderVariablesTable(step.variables || {});
 
-            // Render DSA Array & Pointer View
+            // Render Binary & N-ary Tree View FIRST
+            renderTreeView(step, index);
+
+            // Render DSA Array & Pointer View (hidden if tree is active)
             renderArrayView(step.variables || {});
 
             // Render 2D Matrix View
@@ -463,9 +484,6 @@ public:
 
             // Render Linked List View
             renderLinkedListView(step.variables || {});
-
-            // Render Binary Tree View
-            renderTreeView(step.variables || {});
 
             // Render Graph / Adjacency List View
             renderGraphView(step.variables || {});
@@ -495,14 +513,24 @@ public:
         }
 
         function renderArrayView(variables) {
-            // Find 1D array variable (first array that is not a matrix)
+            // If tree visualizer is active, hide the array visualizer card completely
+            if (canonicalTree && canonicalTree.root) {
+                arrayVisualizerCard.classList.add('hidden');
+                return;
+            }
+
+            // Find 1D array variable (first array that is not a matrix and has only primitive values)
             let targetArray = null;
             let arrayName = '';
             for (const [k, v] of Object.entries(variables)) {
                 if ((v.type === 'array' || v.type === 'list') && !v.isMatrix && v.values && v.values.length > 0) {
-                    targetArray = v;
-                    arrayName = k;
-                    break;
+                    // Filter out arrays of complex objects (like TreeNode, ListNode, Pair)
+                    const hasObjects = v.values.some(elem => elem && (elem.type === 'object' || elem.fields));
+                    if (!hasObjects) {
+                        targetArray = v;
+                        arrayName = k;
+                        break;
+                    }
                 }
             }
 
@@ -663,56 +691,273 @@ public:
             linkedListContainer.innerHTML = html;
         }
 
-        function renderTreeView(variables) {
-            // Find an object with 'left', 'right', or 'children' fields (TreeNode)
-            let rootObj = null;
-            let rootName = '';
-            for (const [k, v] of Object.entries(variables)) {
-                if (v && v.type === 'object' && v.fields && ('left' in v.fields || 'right' in v.fields || 'children' in v.fields)) {
-                    if (k === 'root' || !rootObj) {
-                        rootObj = v;
-                        rootName = k;
+        let canonicalTree = null;
+
+        function isTreeNodeObject(v) {
+            if (!v || v.type !== 'object' || !v.fields) return false;
+            return ('left' in v.fields || 'right' in v.fields || 'children' in v.fields);
+        }
+
+        function getChildrenList(childrenField) {
+            if (!childrenField) return [];
+            if (childrenField.type === 'array' || Array.isArray(childrenField.values)) {
+                return childrenField.values || [];
+            }
+            if (childrenField.fields && childrenField.fields.elementData && Array.isArray(childrenField.fields.elementData.values)) {
+                const size = childrenField.fields.size ? Number(childrenField.fields.size.value) : childrenField.fields.elementData.values.length;
+                return childrenField.fields.elementData.values.slice(0, size);
+            }
+            return [];
+        }
+
+        function getTreeSize(node, seen = new Set()) {
+            if (!node || node.type !== 'object' || !node.fields) return 0;
+            const id = node.id || (node.fields.val ? String(node.fields.val.value) : Math.random());
+            if (seen.has(id)) return 0;
+            seen.add(id);
+
+            let count = 1;
+            const childrenField = node.fields.children;
+            if (childrenField) {
+                const childList = getChildrenList(childrenField);
+                for (const c of childList) {
+                    count += getTreeSize(c, seen);
+                }
+            }
+            if (node.fields.left && node.fields.left.type === 'object') {
+                count += getTreeSize(node.fields.left, seen);
+            }
+            if (node.fields.right && node.fields.right.type === 'object') {
+                count += getTreeSize(node.fields.right, seen);
+            }
+            return count;
+        }
+
+        function preprocessTreeData(data) {
+            canonicalTree = null;
+            if (!data || !data.steps) return;
+            let maxCount = 0;
+            let bestRoot = null;
+            let isNary = false;
+
+            for (const step of data.steps) {
+                if (!step.variables) continue;
+                for (const [k, v] of Object.entries(step.variables)) {
+                    if (isTreeNodeObject(v)) {
+                        const count = getTreeSize(v);
+                        if (count > maxCount) {
+                            maxCount = count;
+                            bestRoot = v;
+                            if (v.fields && v.fields.children) {
+                                isNary = true;
+                            }
+                        }
                     }
                 }
             }
+            if (bestRoot) {
+                canonicalTree = {
+                    root: bestRoot,
+                    isNary: isNary,
+                    size: maxCount
+                };
+            }
+        }
 
-            if (!rootObj) {
+        function findPathToNode(node, targetId, pathSet, currentPath = []) {
+            if (!node || node.type !== 'object' || !node.fields) return false;
+            currentPath.push(node.id);
+            if (node.id === targetId) {
+                for (const id of currentPath) {
+                    pathSet.add(id);
+                }
+                currentPath.pop();
+                return true;
+            }
+            if (node.fields.children) {
+                const childList = getChildrenList(node.fields.children);
+                for (const c of childList) {
+                    if (findPathToNode(c, targetId, pathSet, currentPath)) {
+                        currentPath.pop();
+                        return true;
+                    }
+                }
+            }
+            if (node.fields.left && findPathToNode(node.fields.left, targetId, pathSet, currentPath)) {
+                currentPath.pop();
+                return true;
+            }
+            if (node.fields.right && findPathToNode(node.fields.right, targetId, pathSet, currentPath)) {
+                currentPath.pop();
+                return true;
+            }
+            currentPath.pop();
+            return false;
+        }
+
+        function renderTreeView(step, stepIndex) {
+            if (!canonicalTree || !canonicalTree.root) {
                 treeVisualizerCard.classList.add('hidden');
                 return;
             }
 
-            treeVisualizerCard.classList.remove('hidden');
-            treeVarName.textContent = `Tree Root: ${rootName}`;
+            if (treeVisualizerCard.classList.contains('hidden')) {
+                treeVisualizerCard.classList.remove('hidden');
+                lucide.createIcons();
+            }
 
-            // Helper to recursively build tree HTML
+            // Refresh tree root if current step holds an updated version
+            if (step.variables) {
+                for (const v of Object.values(step.variables)) {
+                    if (isTreeNodeObject(v)) {
+                        const count = getTreeSize(v);
+                        if (count >= canonicalTree.size || (v.id && canonicalTree.root.id && v.id === canonicalTree.root.id)) {
+                            canonicalTree.root = v;
+                        }
+                    }
+                }
+            }
+
+            // Find current active node in scope
+            let activeNode = null;
+            let activeVarName = '';
+            let isNullBaseCase = false;
+
+            if (step.variables) {
+                const priorityNames = ['node', 'root', 'curr', 'cur', 'p', 'q', 'child'];
+                for (const name of priorityNames) {
+                    const v = step.variables[name];
+                    if (v) {
+                        if (isTreeNodeObject(v)) {
+                            activeNode = v;
+                            activeVarName = name;
+                            break;
+                        } else if (v.type === 'null') {
+                            activeVarName = name;
+                            isNullBaseCase = true;
+                            break;
+                        }
+                    }
+                }
+                if (!activeNode && !isNullBaseCase) {
+                    for (const [k, v] of Object.entries(step.variables)) {
+                        if (isTreeNodeObject(v)) {
+                            activeNode = v;
+                            activeVarName = k;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            const activeNodeId = activeNode ? activeNode.id : null;
+
+            // Collect all visited node IDs up to stepIndex
+            const visitedTreeIds = new Set();
+            if (traceData && traceData.steps) {
+                for (let i = 0; i <= stepIndex; i++) {
+                    const s = traceData.steps[i];
+                    if (s && s.variables) {
+                        for (const v of Object.values(s.variables)) {
+                            if (v && v.type === 'object' && v.id) {
+                                visitedTreeIds.add(v.id);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Compute call stack path from root down to activeNodeId
+            const callStackPathIds = new Set();
+            if (activeNodeId) {
+                findPathToNode(canonicalTree.root, activeNodeId, callStackPathIds);
+            }
+
+            // Update status & type badges
+            const typeBadge = document.getElementById('treeTypeBadge');
+            const statusBadge = document.getElementById('treeStatusBadge');
+            if (typeBadge) {
+                typeBadge.textContent = canonicalTree.isNary ? 'N-ary Tree' : 'Binary Tree';
+            }
+
+            if (statusBadge) {
+                if (isNullBaseCase) {
+                    statusBadge.innerHTML = `
+                        <span class="w-2 h-2 rounded-full bg-rose-400 animate-ping"></span>
+                        <span class="text-rose-300 font-bold">Base Case: ${escapeHtml(activeVarName)} == null</span>
+                    `;
+                } else if (activeNode) {
+                    const valObj = activeNode.fields.val || activeNode.fields.data || { repr: '?' };
+                    const valStr = valObj.repr || String(valObj.value !== undefined ? valObj.value : '?');
+                    statusBadge.innerHTML = `
+                        <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+                        <span class="text-amber-300 font-bold">Active: ${escapeHtml(activeVarName)} (val = ${escapeHtml(valStr)})</span>
+                        <span class="text-slate-500">|</span>
+                        <span class="text-slate-400">Stack Depth: ${callStackPathIds.size || 1}</span>
+                    `;
+                } else if (step.event === 'return') {
+                    statusBadge.innerHTML = `
+                        <span class="text-emerald-400 font-bold">↩ Returning from ${escapeHtml(step.function || 'recursion')}</span>
+                    `;
+                } else {
+                    statusBadge.innerHTML = `
+                        <span class="text-slate-400">Tree Nodes: ${canonicalTree.size}</span>
+                    `;
+                }
+            }
+
             function buildTreeNode(node) {
                 if (!node || node.type !== 'object' || !node.fields) {
-                    return '<div class="text-[10px] font-mono text-slate-600 p-1">null</div>';
+                    return `
+                        <div class="flex flex-col items-center">
+                            <div class="w-8 h-8 rounded-full border border-dashed border-slate-700/80 flex items-center justify-center text-[10px] font-mono text-slate-500">
+                                null
+                            </div>
+                        </div>
+                    `;
                 }
+
+                const nodeId = node.id;
+                const isActive = Boolean(activeNodeId && nodeId === activeNodeId);
+                const isAncestor = Boolean(!isActive && callStackPathIds.has(nodeId));
+                const isVisited = Boolean(nodeId && visitedTreeIds.has(nodeId));
+
                 const valObj = node.fields.val || node.fields.data || { repr: '?' };
-                const valStr = valObj.repr || String(valObj.value || '?');
+                const valStr = valObj.repr || String(valObj.value !== undefined ? valObj.value : '?');
+
+                let nodeStyleClass = "border-slate-700 bg-slate-800 text-slate-300";
+                let badge = "";
+
+                if (isActive) {
+                    nodeStyleClass = "border-amber-400 bg-amber-500/30 text-amber-200 font-black ring-4 ring-amber-400/50 shadow-lg shadow-amber-500/40 scale-110";
+                    badge = `<span class="absolute -top-2.5 bg-amber-400 text-slate-950 text-[8px] font-black px-1.5 py-0.2 rounded-full uppercase tracking-tight shadow">ACTIVE</span>`;
+                } else if (isAncestor) {
+                    nodeStyleClass = "border-sky-400 bg-sky-500/25 text-sky-200 font-bold ring-2 ring-sky-400/40 shadow";
+                    badge = `<span class="absolute -top-2.5 bg-sky-500 text-slate-950 text-[8px] font-bold px-1 py-0.2 rounded uppercase tracking-tight shadow">CALL</span>`;
+                } else if (isVisited) {
+                    nodeStyleClass = "border-emerald-500/60 bg-emerald-950/20 text-emerald-300 font-semibold";
+                }
 
                 // N-ary Tree children
                 const childrenField = node.fields.children;
-                let childList = null;
                 if (childrenField) {
-                    if (childrenField.type === 'array' || Array.isArray(childrenField.values)) {
-                        childList = childrenField.values || [];
-                    } else if (childrenField.fields && childrenField.fields.elementData && Array.isArray(childrenField.fields.elementData.values)) {
-                        const size = childrenField.fields.size ? Number(childrenField.fields.size.value) : childrenField.fields.elementData.values.length;
-                        childList = childrenField.fields.elementData.values.slice(0, size);
-                    }
-                }
-
-                if (childList !== null) {
+                    const childList = getChildrenList(childrenField);
                     return `
-                        <div class="flex flex-col items-center m-1">
-                            <div class="w-10 h-10 rounded-full border-2 border-sky-400 bg-sky-500/20 flex items-center justify-center font-mono text-xs font-bold text-white shadow-md shadow-sky-500/20">
-                                ${escapeHtml(valStr)}
+                        <div class="flex flex-col items-center m-1.5">
+                            <div class="relative flex flex-col items-center">
+                                ${badge}
+                                <div class="w-11 h-11 rounded-full border-2 ${nodeStyleClass} flex items-center justify-center font-mono text-xs transition-all duration-150">
+                                    ${escapeHtml(valStr)}
+                                </div>
                             </div>
                             ${childList.length > 0 ? `
-                                <div class="flex items-start justify-center border-t border-slate-700 pt-2 mt-2 space-x-3">
-                                    ${childList.map(c => `<div class="flex flex-col items-center">${buildTreeNode(c)}</div>`).join('')}
+                                <div class="flex items-start justify-center border-t border-slate-700/80 pt-3 mt-3 gap-3">
+                                    ${childList.map((c, idx) => `
+                                        <div class="flex flex-col items-center">
+                                            <span class="text-[9px] font-mono text-slate-400 mb-1 font-semibold">[${idx}]</span>
+                                            ${buildTreeNode(c)}
+                                        </div>
+                                    `).join('')}
                                 </div>
                             ` : ''}
                         </div>
@@ -722,24 +967,35 @@ public:
                 // Binary Tree (left, right)
                 const leftChild = node.fields.left;
                 const rightChild = node.fields.right;
-                const hasChildren = (leftChild && leftChild.type === 'object') || (rightChild && rightChild.type === 'object');
+                const hasLeft = leftChild && leftChild.type === 'object';
+                const hasRight = rightChild && rightChild.type === 'object';
+                const hasChildren = hasLeft || hasRight;
 
                 return `
-                    <div class="flex flex-col items-center m-1">
-                        <div class="w-10 h-10 rounded-full border-2 border-sky-400 bg-sky-500/20 flex items-center justify-center font-mono text-xs font-bold text-white shadow-md shadow-sky-500/20">
-                            ${escapeHtml(valStr)}
+                    <div class="flex flex-col items-center m-1.5">
+                        <div class="relative flex flex-col items-center">
+                            ${badge}
+                            <div class="w-11 h-11 rounded-full border-2 ${nodeStyleClass} flex items-center justify-center font-mono text-xs transition-all duration-150">
+                                ${escapeHtml(valStr)}
+                            </div>
                         </div>
                         ${hasChildren ? `
-                            <div class="flex items-start justify-center border-t border-slate-700 pt-2 mt-2 space-x-4">
-                                <div class="flex flex-col items-center">${buildTreeNode(leftChild)}</div>
-                                <div class="flex flex-col items-center">${buildTreeNode(rightChild)}</div>
+                            <div class="flex items-start justify-center border-t border-slate-700/80 pt-3 mt-3 gap-5">
+                                <div class="flex flex-col items-center">
+                                    <span class="text-[9px] font-mono font-bold text-sky-400/80 mb-1">LEFT</span>
+                                    ${buildTreeNode(leftChild)}
+                                </div>
+                                <div class="flex flex-col items-center">
+                                    <span class="text-[9px] font-mono font-bold text-emerald-400/80 mb-1">RIGHT</span>
+                                    ${buildTreeNode(rightChild)}
+                                </div>
                             </div>
                         ` : ''}
                     </div>
                 `;
             }
 
-            treeContainer.innerHTML = buildTreeNode(rootObj);
+            treeContainer.innerHTML = buildTreeNode(canonicalTree.root);
         }
 
         function renderGraphView(variables) {
@@ -929,6 +1185,7 @@ public:
                         stdoutOutput.textContent = data.stdout || '(No output)';
                         return;
                     }
+                    preprocessTreeData(data);
                     stepSlider.max = data.steps.length - 1;
                     stepSlider.value = 0;
                     renderStep(0);
@@ -936,6 +1193,7 @@ public:
                         stepInfoBadge.textContent = `Warning: ${data.error}`;
                     }
                 } else {
+                    canonicalTree = null;
                     traceData = null;
                     stepCounter.textContent = '0 / 0';
                     stepSlider.max = 0;

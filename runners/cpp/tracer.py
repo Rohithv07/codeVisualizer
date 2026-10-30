@@ -216,7 +216,7 @@ def trace_cpp(code: str, stdin_data: str, max_steps: int = MAX_STEPS_DEFAULT) ->
             file_name = file_spec.GetFilename()
             line_num = line_entry.GetLine()
 
-            if file_name == "solution.cpp":
+            if file_name and file_name.lower() == "solution.cpp":
                 step_count += 1
                 if step_count > max_steps:
                     status = "STEP_LIMIT_EXCEEDED"
@@ -237,7 +237,8 @@ def trace_cpp(code: str, stdin_data: str, max_steps: int = MAX_STEPS_DEFAULT) ->
                     f = thread.GetFrameAtIndex(f_idx)
                     f_line = f.GetLineEntry().GetLine()
                     f_name = f.GetFunctionName() or "unknown"
-                    if f.GetLineEntry().GetFileSpec().GetFilename() == "solution.cpp":
+                    f_fn = f.GetLineEntry().GetFileSpec().GetFilename()
+                    if f_fn and f_fn.lower() == "solution.cpp":
                         call_stack.append({"function": f_name, "line": f_line})
                 call_stack.reverse()
 

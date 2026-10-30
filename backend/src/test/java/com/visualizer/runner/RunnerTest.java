@@ -188,4 +188,65 @@ public class RunnerTest {
         assertEquals("SUCCESS", response.status(), "LeetCode C++ failed: " + response.error());
         assertTrue(response.totalSteps() > 5);
     }
+
+    @Test
+    public void testLeetCodeJavaShortestPathWithPairAnd2DArray() throws Exception {
+        String code = "class Solution {\n" +
+                "    public int shortestPath(int n, int[][] edges, String labels, int k) {\n" +
+                "        List<List<Pair>> graph = buildGraph(edges, n);\n" +
+                "        PriorityQueue<int[]> minHeap = new PriorityQueue<>((a1, a2) -> {\n" +
+                "            return Integer.compare(a1[1], a2[1]);\n" +
+                "        });\n" +
+                "        int[][] distance = new int[n][k + 1];\n" +
+                "        for (int i = 0; i < n; i++) {\n" +
+                "            Arrays.fill(distance[i], Integer.MAX_VALUE);\n" +
+                "        }\n" +
+                "        distance[0][1] = 0;\n" +
+                "        minHeap.offer(new int[]{0, 0, 1});\n" +
+                "        while (!minHeap.isEmpty()) {\n" +
+                "            int[] top = minHeap.poll();\n" +
+                "            int u = top[0];\n" +
+                "            int d = top[1];\n" +
+                "            int len = top[2];\n" +
+                "            if (u == n - 1) return d;\n" +
+                "            if (d > distance[u][len]) continue;\n" +
+                "            for (Pair neighbor : graph.get(u)) {\n" +
+                "                int v = neighbor.node;\n" +
+                "                int w = neighbor.distance;\n" +
+                "                int nextLen = (labels.charAt(u) == labels.charAt(v)) ? len + 1 : 1;\n" +
+                "                if (nextLen <= k) {\n" +
+                "                    if (d + w < distance[v][nextLen]) {\n" +
+                "                        distance[v][nextLen] = d + w;\n" +
+                "                        minHeap.offer(new int[]{v, d + w, nextLen});\n" +
+                "                    }\n" +
+                "                }\n" +
+                "            }\n" +
+                "        }\n" +
+                "        return -1;\n" +
+                "    }\n" +
+                "    private List<List<Pair>> buildGraph(int [][] edges, int n) {\n" +
+                "        List<List<Pair>> graph = new ArrayList<>();\n" +
+                "        for (int node = 0; node < n; node++) graph.add(new ArrayList<>());\n" +
+                "        for (int [] edge : edges) graph.get(edge[0]).add(new Pair(edge[1], edge[2]));\n" +
+                "        return graph;\n" +
+                "    }\n" +
+                "}\n" +
+                "class Pair {\n" +
+                "    int node;\n" +
+                "    int distance;\n" +
+                "    public Pair(int node, int distance) {\n" +
+                "        this.node = node;\n" +
+                "        this.distance = distance;\n" +
+                "    }\n" +
+                "}";
+        String input = "3\n[[0,1,1],[1,2,1],[0,2,3]]\naab\n1";
+
+        TraceRequest request = new TraceRequest("java", code, input, 100);
+        TraceResponse response = visualizerService.trace(request);
+
+        assertNotNull(response);
+        assertEquals("SUCCESS", response.status(), "LeetCode shortestPath failed: " + response.error());
+        assertTrue(response.totalSteps() > 10);
+        assertTrue(response.stdout().contains("3"));
+    }
 }

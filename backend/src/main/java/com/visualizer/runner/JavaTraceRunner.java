@@ -118,6 +118,7 @@ public class JavaTraceRunner implements LanguageRunner {
     private TraceResponse executeWithJdi(String className, Path classpathDir, String stdinData, int maxSteps) {
         List<TraceStep> steps = new ArrayList<>();
         StringBuilder totalStdout = new StringBuilder();
+        StringBuilder totalStderr = new StringBuilder();
         int lastStdoutPos = 0;
         String status = "SUCCESS";
         String errorMessage = null;
@@ -131,6 +132,7 @@ public class JavaTraceRunner implements LanguageRunner {
         VirtualMachine vm = null;
         Process vmProcess = null;
         Thread stdoutReader = null;
+        Thread stderrReader = null;
 
         try {
             vm = connector.launch(arguments);
@@ -162,10 +164,30 @@ public class JavaTraceRunner implements LanguageRunner {
             stdoutReader.setDaemon(true);
             stdoutReader.start();
 
+            // Capture stderr
+            InputStream es = vmProcess.getErrorStream();
+            stderrReader = new Thread(() -> {
+                try {
+                    byte[] buffer = new byte[1024];
+                    int len;
+                    while ((len = es.read(buffer)) != -1) {
+                        synchronized (totalStderr) {
+                            totalStderr.append(new String(buffer, 0, len, StandardCharsets.UTF_8));
+                        }
+                    }
+                } catch (IOException ignored) {}
+            });
+            stderrReader.setDaemon(true);
+            stderrReader.start();
+
             // Setup ClassPrepareRequest
             EventRequestManager erm = vm.eventRequestManager();
             ClassPrepareRequest classReq = erm.createClassPrepareRequest();
-            classReq.addClassFilter(className + "*");
+            classReq.addClassExclusionFilter("java.*");
+            classReq.addClassExclusionFilter("javax.*");
+            classReq.addClassExclusionFilter("sun.*");
+            classReq.addClassExclusionFilter("com.sun.*");
+            classReq.addClassExclusionFilter("jdk.*");
             classReq.enable();
 
             EventQueue queue = vm.eventQueue();
@@ -175,8 +197,17 @@ public class JavaTraceRunner implements LanguageRunner {
             vm.resume();
 
             while (running) {
+                if (vmProcess != null && !vmProcess.isAlive()) {
+                    running = false;
+                    break;
+                }
+
                 EventSet eventSet = queue.remove(2000); // 2 second event timeout
                 if (eventSet == null) {
+                    if (vmProcess != null && !vmProcess.isAlive()) {
+                        running = false;
+                        break;
+                    }
                     status = "TIMEOUT";
                     errorMessage = "Execution timed out waiting for debug events.";
                     break;
@@ -189,8 +220,20 @@ public class JavaTraceRunner implements LanguageRunner {
                     }
 
                     if (event instanceof ClassPrepareEvent classPrepareEvent) {
+                        // In JDI, only one StepRequest is allowed per thread.
+                        // Remove any existing step request on this thread first to avoid DuplicateRequestException.
+                        List<StepRequest> existing = new ArrayList<>(erm.stepRequests());
+                        for (StepRequest sr : existing) {
+                            if (sr.thread().equals(classPrepareEvent.thread())) {
+                                erm.deleteEventRequest(sr);
+                            }
+                        }
                         StepRequest stepReq = erm.createStepRequest(classPrepareEvent.thread(), StepRequest.STEP_LINE, StepRequest.STEP_INTO);
-                        stepReq.addClassFilter(className + "*");
+                        stepReq.addClassExclusionFilter("java.*");
+                        stepReq.addClassExclusionFilter("javax.*");
+                        stepReq.addClassExclusionFilter("sun.*");
+                        stepReq.addClassExclusionFilter("com.sun.*");
+                        stepReq.addClassExclusionFilter("jdk.*");
                         stepReq.enable();
                     } else if (event instanceof StepEvent stepEvent) {
                         stepCount++;
@@ -209,7 +252,8 @@ public class JavaTraceRunner implements LanguageRunner {
                         List<com.visualizer.model.StackFrame> callStack = new ArrayList<>();
                         try {
                             for (com.sun.jdi.StackFrame sf : stepEvent.thread().frames()) {
-                                if (sf.location().declaringType().name().startsWith(className)) {
+                                String declName = sf.location().declaringType().name();
+                                if (!declName.startsWith("java.") && !declName.startsWith("javax.") && !declName.startsWith("sun.") && !declName.startsWith("jdk.")) {
                                     callStack.add(new com.visualizer.model.StackFrame(sf.location().method().name(), sf.location().lineNumber()));
                                 }
                             }
@@ -274,6 +318,14 @@ public class JavaTraceRunner implements LanguageRunner {
             }
             if (vmProcess != null) {
                 vmProcess.destroyForcibly();
+            }
+        }
+
+        String stderrStr = totalStderr.toString().trim();
+        if (errorMessage == null && !stderrStr.isEmpty()) {
+            if (stderrStr.contains("Exception") || stderrStr.contains("Error") || steps.isEmpty()) {
+                status = "RUNTIME_ERROR";
+                errorMessage = stderrStr;
             }
         }
 

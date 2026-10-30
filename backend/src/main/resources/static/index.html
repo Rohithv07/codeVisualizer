@@ -95,6 +95,8 @@
                 <label class="text-xs text-slate-400 font-medium">Template:</label>
                 <select id="templateSelector" class="bg-slate-800 border border-slate-700 text-xs text-slate-200 rounded-md px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-sky-500">
                     <option value="java_twopointers">Java: Two Pointers (Reverse Array)</option>
+                    <option value="leetcode_java_shortest_path">LeetCode: Java Dijkstra (Shortest Path & Matrix)</option>
+                    <option value="leetcode_python_twosum">LeetCode: Python Two Sum (Hash Map)</option>
                     <option value="java_binarysearch">Java: Binary Search</option>
                     <option value="cpp_twopointers">C++: Two Pointers (Reverse Array)</option>
                     <option value="cpp_binarysearch">C++: Binary Search</option>
@@ -388,6 +390,88 @@ public class Solution {
         System.out.println("Result: " + ans);
     }
 }`
+            },
+            leetcode_java_shortest_path: {
+                language: 'java',
+                input: '3\n[[0,1,1],[1,2,1],[0,2,3]]\naab\n1',
+                code: `class Solution {
+    public int shortestPath(int n, int[][] edges, String labels, int k) {
+        List<List<Pair>> graph = buildGraph(edges, n);
+        PriorityQueue<int[]> minHeap = new PriorityQueue<>((a1, a2) -> {
+            return Integer.compare(a1[1], a2[1]);
+        });
+        int[][] distance = new int[n][k + 1];
+        for (int i = 0; i < n; i++) {
+            Arrays.fill(distance[i], Integer.MAX_VALUE);
+        }
+
+        // Base case: starting at node 0
+        distance[0][1] = 0;
+        minHeap.offer(new int[]{0, 0, 1});
+
+        while (!minHeap.isEmpty()) {
+            int[] top = minHeap.poll();
+            int u = top[0];
+            int d = top[1];
+            int len = top[2];
+
+            if (u == n - 1) {
+                return d;
+            }
+
+            if (d > distance[u][len]) {
+                continue;
+            }
+
+            for (Pair neighbor : graph.get(u)) {
+                int v = neighbor.node;
+                int w = neighbor.distance;
+
+                int nextLen = (labels.charAt(u) == labels.charAt(v)) ? len + 1 : 1;
+                if (nextLen <= k) {
+                    if (d + w < distance[v][nextLen]) {
+                        distance[v][nextLen] = d + w;
+                        minHeap.offer(new int[]{v, d + w, nextLen});
+                    }
+                }
+            }
+        }
+        return -1;
+    }
+
+    private List<List<Pair>> buildGraph(int [][] edges, int n) {
+        List<List<Pair>> graph = new ArrayList<>();
+        for (int node = 0; node < n; node++) {
+            graph.add(new ArrayList<>());
+        }
+        for (int [] edge : edges) {
+            graph.get(edge[0]).add(new Pair(edge[1], edge[2]));
+        }
+        return graph;
+    }
+}
+
+class Pair {
+    int node;
+    int distance;
+    public Pair(int node, int distance) {
+        this.node = node;
+        this.distance = distance;
+    }
+}`
+            },
+            leetcode_python_twosum: {
+                language: 'python',
+                input: 'nums = [2, 7, 11, 15], target = 9',
+                code: `class Solution:
+    def twoSum(self, nums: list[int], target: int) -> list[int]:
+        lookup = {}
+        for i, num in enumerate(nums):
+            diff = target - num
+            if diff in lookup:
+                return [lookup[diff], i]
+            lookup[num] = i
+        return []`
             },
             python_binarysearch: {
                 language: 'python',
@@ -1145,7 +1229,13 @@ print("BFS traversal order:", order)`
                 traceData = data;
 
                 if (data.status === 'SUCCESS' || data.status === 'STEP_LIMIT_EXCEEDED') {
-                    stepSlider.max = (data.steps.length - 1) >= 0 ? data.steps.length - 1 : 0;
+                    if (!data.steps || data.steps.length === 0) {
+                        stepInfoBadge.textContent = 'Execution finished with 0 steps recorded.';
+                        stepCounter.textContent = '0 / 0';
+                        stdoutOutput.textContent = data.stdout || '(No output)';
+                        return;
+                    }
+                    stepSlider.max = data.steps.length - 1;
                     stepSlider.value = 0;
                     renderStep(0);
                     if (data.status === 'STEP_LIMIT_EXCEEDED') {

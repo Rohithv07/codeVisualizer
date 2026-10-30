@@ -32,14 +32,14 @@ public class LeetCodeHarnessService {
         }
 
         // Method signature regex inside Solution
-        // e.g. public int[] twoSum(int[] nums, int target)
+        // e.g. public int shortestPath(int n, int[][] edges, String labels, int k)
         Pattern methodPattern = Pattern.compile(
                 "public\\s+([A-Za-z0-9_<>\\[\\]]+)\\s+([A-Za-z0-9_]+)\\s*\\(([^)]*)\\)"
         );
         Matcher matcher = methodPattern.matcher(code);
 
         if (!matcher.find()) {
-            return code; // Cannot safely deduce method signature, leave as-is
+            return code;
         }
 
         String returnType = matcher.group(1);
@@ -64,22 +64,28 @@ public class LeetCodeHarnessService {
             argNames.add(p.name);
         }
 
-        mainMethod.append("        Object __result = __sol.").append(methodName).append("(")
-                .append(String.join(", ", argNames)).append(");\n");
-        mainMethod.append("        if (__result instanceof int[] __arr) {\n");
-        mainMethod.append("            System.out.println(Arrays.toString(__arr));\n");
-        mainMethod.append("        } else if (__result instanceof Object[] __oa) {\n");
-        mainMethod.append("            System.out.println(Arrays.deepToString(__oa));\n");
-        mainMethod.append("        } else {\n");
-        mainMethod.append("            System.out.println(__result);\n");
-        mainMethod.append("        }\n");
+        if ("void".equalsIgnoreCase(returnType)) {
+            mainMethod.append("        __sol.").append(methodName).append("(")
+                    .append(String.join(", ", argNames)).append(");\n");
+            mainMethod.append("        System.out.println(\"Completed\");\n");
+        } else {
+            mainMethod.append("        Object __result = __sol.").append(methodName).append("(")
+                    .append(String.join(", ", argNames)).append(");\n");
+            mainMethod.append("        if (__result instanceof int[] __arr) {\n");
+            mainMethod.append("            System.out.println(Arrays.toString(__arr));\n");
+            mainMethod.append("        } else if (__result instanceof Object[] __oa) {\n");
+            mainMethod.append("            System.out.println(Arrays.deepToString(__oa));\n");
+            mainMethod.append("        } else {\n");
+            mainMethod.append("            System.out.println(__result);\n");
+            mainMethod.append("        }\n");
+        }
         mainMethod.append("    }\n");
 
-        // Insert before the last closing brace of class Solution
-        int lastBrace = code.lastIndexOf('}');
-        if (lastBrace != -1) {
-            String prefix = "import java.util.*;\nimport java.io.*;\n";
-            return prefix + code.substring(0, lastBrace) + mainMethod + code.substring(lastBrace);
+        // Insert specifically before the closing brace of class Solution
+        int solutionClosingBrace = findClassClosingBrace(code, "Solution");
+        if (solutionClosingBrace != -1) {
+            String prefix = "import java.util.*; import java.io.*; ";
+            return prefix + code.substring(0, solutionClosingBrace) + mainMethod + code.substring(solutionClosingBrace);
         }
 
         return code;
@@ -93,7 +99,6 @@ public class LeetCodeHarnessService {
             return code;
         }
 
-        // Method signature regex: e.g. vector<int> twoSum(vector<int>& nums, int target)
         Pattern methodPattern = Pattern.compile(
                 "([A-Za-z0-9_<:>]+)\\s+([A-Za-z0-9_]+)\\s*\\(([^)]*)\\)\\s*\\{"
         );
@@ -120,7 +125,6 @@ public class LeetCodeHarnessService {
             ParamDef p = params.get(i);
             String rawVal = i < rawInputs.size() ? rawInputs.get(i) : null;
             String initExpr = generateCppInitExpr(p.type, rawVal);
-            // Clean type of reference & for local var
             String cleanType = p.type.replace("&", "").trim();
             mainFunc.append("    ").append(cleanType).append(" ").append(p.name)
                     .append(" = ").append(initExpr).append(";\n");
@@ -133,7 +137,7 @@ public class LeetCodeHarnessService {
         mainFunc.append("    return 0;\n");
         mainFunc.append("}\n");
 
-        String prefix = "#include <iostream>\n#include <vector>\n#include <string>\n#include <unordered_map>\n#include <algorithm>\nusing namespace std;\n";
+        String prefix = "#include <iostream>\n#include <vector>\n#include <string>\n#include <unordered_map>\n#include <queue>\n#include <algorithm>\nusing namespace std;\n#line 1 \"solution.cpp\"\n";
         return prefix + code + "\n" + mainFunc;
     }
 
@@ -175,6 +179,30 @@ public class LeetCodeHarnessService {
         return code + harness;
     }
 
+    private int findClassClosingBrace(String code, String className) {
+        Pattern pattern = Pattern.compile("\\bclass\\s+" + className + "\\b");
+        Matcher matcher = pattern.matcher(code);
+        if (!matcher.find()) {
+            return code.lastIndexOf('}');
+        }
+        int classStart = matcher.start();
+        int openBraceIdx = code.indexOf('{', classStart);
+        if (openBraceIdx == -1) return code.lastIndexOf('}');
+
+        int braceCount = 1;
+        for (int i = openBraceIdx + 1; i < code.length(); i++) {
+            char c = code.charAt(i);
+            if (c == '{') braceCount++;
+            else if (c == '}') {
+                braceCount--;
+                if (braceCount == 0) {
+                    return i;
+                }
+            }
+        }
+        return code.lastIndexOf('}');
+    }
+
     private List<ParamDef> parseParams(String paramsStr) {
         List<ParamDef> list = new ArrayList<>();
         if (paramsStr.isEmpty()) return list;
@@ -198,9 +226,9 @@ public class LeetCodeHarnessService {
             return values;
         }
 
-        // Format 1: key = val, key2 = val2 (e.g. nums = [2,7,11,15], target = 9)
+        // Format 1: key = val, key2 = val2
         if (input.contains("=")) {
-            Pattern kvPattern = Pattern.compile("[A-Za-z0-9_]+\\s*=\\s*(\\[[^\\]]*\\]|\"[^\"]*\"|[^,\\n]+)");
+            Pattern kvPattern = Pattern.compile("[A-Za-z0-9_]+\\s*=\\s*(\\[[\\s\\S]*?\\]|\"[^\"]*\"|[^,\\n]+)");
             Matcher m = kvPattern.matcher(input);
             while (m.find()) {
                 values.add(m.group(1).trim());
@@ -208,7 +236,7 @@ public class LeetCodeHarnessService {
             if (!values.isEmpty()) return values;
         }
 
-        // Format 2: line by line (e.g. [2,7,11,15]\n9)
+        // Format 2: line by line
         String[] lines = input.split("\n");
         for (String line : lines) {
             String l = line.trim();
@@ -222,6 +250,16 @@ public class LeetCodeHarnessService {
     private String generateJavaInitExpr(String type, String raw) {
         String cleanType = type.trim();
 
+        // 2D int array: int[][]
+        if (cleanType.equals("int[][]")) {
+            if (raw != null && raw.startsWith("[") && raw.endsWith("]")) {
+                String converted = raw.replace('[', '{').replace(']', '}');
+                return "new int[][]" + converted;
+            }
+            return "new int[][]{}";
+        }
+
+        // 1D int array: int[]
         if (cleanType.equals("int[]")) {
             if (raw != null && raw.startsWith("[") && raw.endsWith("]")) {
                 String inner = raw.substring(1, raw.length() - 1).trim();
@@ -232,7 +270,7 @@ public class LeetCodeHarnessService {
 
         if (cleanType.equals("int")) {
             if (raw != null && raw.matches("-?\\d+")) return raw;
-            return "9";
+            return "0";
         }
 
         if (cleanType.equals("double") || cleanType.equals("float")) {
@@ -246,7 +284,10 @@ public class LeetCodeHarnessService {
         }
 
         if (cleanType.equals("String")) {
-            if (raw != null) return raw.startsWith("\"") ? raw : "\"" + raw + "\"";
+            if (raw != null) {
+                String s = raw.trim();
+                return s.startsWith("\"") && s.endsWith("\"") ? s : "\"" + s.replace("\"", "\\\"") + "\"";
+            }
             return "\"\"";
         }
 
@@ -264,6 +305,13 @@ public class LeetCodeHarnessService {
     private String generateCppInitExpr(String type, String raw) {
         String cleanType = type.replace("&", "").trim();
 
+        if (cleanType.contains("vector<vector<int>>")) {
+            if (raw != null && raw.startsWith("[") && raw.endsWith("]")) {
+                return raw.replace('[', '{').replace(']', '}');
+            }
+            return "{}";
+        }
+
         if (cleanType.contains("vector<int>")) {
             if (raw != null && raw.startsWith("[") && raw.endsWith("]")) {
                 String inner = raw.substring(1, raw.length() - 1).trim();
@@ -274,11 +322,14 @@ public class LeetCodeHarnessService {
 
         if (cleanType.equals("int")) {
             if (raw != null && raw.matches("-?\\d+")) return raw;
-            return "9";
+            return "0";
         }
 
         if (cleanType.equals("string")) {
-            if (raw != null) return raw.startsWith("\"") ? raw : "\"" + raw + "\"";
+            if (raw != null) {
+                String s = raw.trim();
+                return s.startsWith("\"") && s.endsWith("\"") ? s : "\"" + s.replace("\"", "\\\"") + "\"";
+            }
             return "\"\"";
         }
 

@@ -166,8 +166,8 @@ public class LeetCodeHarnessService {
 
         // Helper static builders for TreeNode
         if (containsWord(cleanCode, "TreeNode")) {
-            boolean shouldGenerateBinaryBuilder = !hasTreeNode || userTreeNodeHasLeft;
-            boolean shouldGenerateNaryBuilder = !hasTreeNode || isNaryTree;
+            boolean shouldGenerateBinaryBuilder = !isNaryTree;
+            boolean shouldGenerateNaryBuilder = isNaryTree;
 
             if (shouldGenerateBinaryBuilder) {
                 mainMethod.append("    public static TreeNode __buildTree(Integer[] vals) {\n");
@@ -235,12 +235,16 @@ public class LeetCodeHarnessService {
             definitions.append("\nclass TreeNode {\n")
                     .append("    public int val;\n")
                     .append("    public TreeNode left;\n")
-                    .append("    public TreeNode right;\n")
-                    .append("    public List<TreeNode> children = new ArrayList<>();\n")
-                    .append("    public TreeNode() {}\n")
-                    .append("    public TreeNode(int val) { this.val = val; }\n")
-                    .append("    public TreeNode(int val, List<TreeNode> children) { this.val = val; this.children = children; }\n")
-                    .append("    public TreeNode(int val, TreeNode left, TreeNode right) {\n")
+                    .append("    public TreeNode right;\n");
+            if (isNaryTree) {
+                definitions.append("    public List<TreeNode> children = new ArrayList<>();\n");
+            }
+            definitions.append("    public TreeNode() {}\n")
+                    .append("    public TreeNode(int val) { this.val = val; }\n");
+            if (isNaryTree) {
+                definitions.append("    public TreeNode(int val, List<TreeNode> children) { this.val = val; this.children = children; }\n");
+            }
+            definitions.append("    public TreeNode(int val, TreeNode left, TreeNode right) {\n")
                     .append("        this.val = val;\n")
                     .append("        this.left = left;\n")
                     .append("        this.right = right;\n")
@@ -316,13 +320,17 @@ public class LeetCodeHarnessService {
             helpers.append("struct TreeNode {\n")
                     .append("    int val;\n")
                     .append("    TreeNode *left;\n")
-                    .append("    TreeNode *right;\n")
-                    .append("    vector<TreeNode*> children;\n")
-                    .append("    TreeNode() : val(0), left(nullptr), right(nullptr) {}\n")
+                    .append("    TreeNode *right;\n");
+            if (isNaryTree) {
+                helpers.append("    vector<TreeNode*> children;\n");
+            }
+            helpers.append("    TreeNode() : val(0), left(nullptr), right(nullptr) {}\n")
                     .append("    TreeNode(int x) : val(x), left(nullptr), right(nullptr) {}\n")
-                    .append("    TreeNode(int x, TreeNode *left, TreeNode *right) : val(x), left(left), right(right) {}\n")
-                    .append("    TreeNode(int x, vector<TreeNode*> _children) : val(x), left(nullptr), right(nullptr), children(_children) {}\n")
-                    .append("};\n\n");
+                    .append("    TreeNode(int x, TreeNode *left, TreeNode *right) : val(x), left(left), right(right) {}\n");
+            if (isNaryTree) {
+                helpers.append("    TreeNode(int x, vector<TreeNode*> _children) : val(x), left(nullptr), right(nullptr), children(_children) {}\n");
+            }
+            helpers.append("};\n\n");
         }
         if ((usesNode || containsWord(cleanCode, "Node")) && !hasNode) {
             helpers.append("class Node {\n")
@@ -349,49 +357,51 @@ public class LeetCodeHarnessService {
                     .append("}\n\n");
         }
         if (containsWord(cleanCode, "TreeNode")) {
-            helpers.append("TreeNode* __buildTree(const vector<string>& vals) {\n")
-                    .append("    if (vals.empty() || vals[0] == \"null\" || vals[0] == \"None\") return nullptr;\n")
-                    .append("    TreeNode* root = new TreeNode(stoi(vals[0]));\n")
-                    .append("    queue<TreeNode*> q;\n")
-                    .append("    q.push(root);\n")
-                    .append("    size_t i = 1;\n")
-                    .append("    while (!q.empty() && i < vals.size()) {\n")
-                    .append("        TreeNode* curr = q.front();\n")
-                    .append("        q.pop();\n")
-                    .append("        if (i < vals.size() && vals[i] != \"null\" && vals[i] != \"None\") {\n")
-                    .append("            curr->left = new TreeNode(stoi(vals[i]));\n")
-                    .append("            q.push(curr->left);\n")
-                    .append("        }\n")
-                    .append("        i++;\n")
-                    .append("        if (i < vals.size() && vals[i] != \"null\" && vals[i] != \"None\") {\n")
-                    .append("            curr->right = new TreeNode(stoi(vals[i]));\n")
-                    .append("            q.push(curr->right);\n")
-                    .append("        }\n")
-                    .append("        i++;\n")
-                    .append("    }\n")
-                    .append("    return root;\n")
-                    .append("}\n\n");
-
-            helpers.append("TreeNode* __buildNaryTree(const vector<string>& vals) {\n")
-                    .append("    if (vals.empty() || vals[0] == \"null\" || vals[0] == \"None\") return nullptr;\n")
-                    .append("    TreeNode* root = new TreeNode(stoi(vals[0]));\n")
-                    .append("    queue<TreeNode*> q;\n")
-                    .append("    q.push(root);\n")
-                    .append("    size_t i = 1;\n")
-                    .append("    if (i < vals.size() && (vals[i] == \"null\" || vals[i] == \"None\")) i++;\n")
-                    .append("    while (!q.empty() && i < vals.size()) {\n")
-                    .append("        TreeNode* parent = q.front();\n")
-                    .append("        q.pop();\n")
-                    .append("        while (i < vals.size() && vals[i] != \"null\" && vals[i] != \"None\") {\n")
-                    .append("            TreeNode* child = new TreeNode(stoi(vals[i]));\n")
-                    .append("            parent->children.push_back(child);\n")
-                    .append("            q.push(child);\n")
-                    .append("            i++;\n")
-                    .append("        }\n")
-                    .append("        i++;\n")
-                    .append("    }\n")
-                    .append("    return root;\n")
-                    .append("}\n\n");
+            if (!isNaryTree) {
+                helpers.append("TreeNode* __buildTree(const vector<string>& vals) {\n")
+                        .append("    if (vals.empty() || vals[0] == \"null\" || vals[0] == \"None\") return nullptr;\n")
+                        .append("    TreeNode* root = new TreeNode(stoi(vals[0]));\n")
+                        .append("    queue<TreeNode*> q;\n")
+                        .append("    q.push(root);\n")
+                        .append("    size_t i = 1;\n")
+                        .append("    while (!q.empty() && i < vals.size()) {\n")
+                        .append("        TreeNode* curr = q.front();\n")
+                        .append("        q.pop();\n")
+                        .append("        if (i < vals.size() && vals[i] != \"null\" && vals[i] != \"None\") {\n")
+                        .append("            curr->left = new TreeNode(stoi(vals[i]));\n")
+                        .append("            q.push(curr->left);\n")
+                        .append("        }\n")
+                        .append("        i++;\n")
+                        .append("        if (i < vals.size() && vals[i] != \"null\" && vals[i] != \"None\") {\n")
+                        .append("            curr->right = new TreeNode(stoi(vals[i]));\n")
+                        .append("            q.push(curr->right);\n")
+                        .append("        }\n")
+                        .append("        i++;\n")
+                        .append("    }\n")
+                        .append("    return root;\n")
+                        .append("}\n\n");
+            } else {
+                helpers.append("TreeNode* __buildNaryTree(const vector<string>& vals) {\n")
+                        .append("    if (vals.empty() || vals[0] == \"null\" || vals[0] == \"None\") return nullptr;\n")
+                        .append("    TreeNode* root = new TreeNode(stoi(vals[0]));\n")
+                        .append("    queue<TreeNode*> q;\n")
+                        .append("    q.push(root);\n")
+                        .append("    size_t i = 1;\n")
+                        .append("    if (i < vals.size() && (vals[i] == \"null\" || vals[i] == \"None\")) i++;\n")
+                        .append("    while (!q.empty() && i < vals.size()) {\n")
+                        .append("        TreeNode* parent = q.front();\n")
+                        .append("        q.pop();\n")
+                        .append("        while (i < vals.size() && vals[i] != \"null\" && vals[i] != \"None\") {\n")
+                        .append("            TreeNode* child = new TreeNode(stoi(vals[i]));\n")
+                        .append("            parent->children.push_back(child);\n")
+                        .append("            q.push(child);\n")
+                        .append("            i++;\n")
+                        .append("        }\n")
+                        .append("        i++;\n")
+                        .append("    }\n")
+                        .append("    return root;\n")
+                        .append("}\n\n");
+            }
         }
 
         if (usesNode || containsWord(cleanCode, "Node")) {
@@ -512,11 +522,18 @@ public class LeetCodeHarnessService {
 
         header.append("if 'TreeNode' not in locals():\n");
         header.append("    class TreeNode:\n");
-        header.append("        def __init__(self, val=0, left=None, right=None, children=None):\n");
-        header.append("            self.val = val\n");
-        header.append("            self.left = left\n");
-        header.append("            self.right = right\n");
-        header.append("            self.children = children if children is not None else []\n\n");
+        if (isNaryTree) {
+            header.append("        def __init__(self, val=0, left=None, right=None, children=None):\n");
+            header.append("            self.val = val\n");
+            header.append("            self.left = left\n");
+            header.append("            self.right = right\n");
+            header.append("            self.children = children if children is not None else []\n\n");
+        } else {
+            header.append("        def __init__(self, val=0, left=None, right=None):\n");
+            header.append("            self.val = val\n");
+            header.append("            self.left = left\n");
+            header.append("            self.right = right\n\n");
+        }
 
         header.append("if 'Node' not in locals():\n");
         header.append("    class Node:\n");

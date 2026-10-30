@@ -25,7 +25,9 @@ for p in LLDB_PATHS:
 
 try:
     import lldb
-except ImportError:
+    if not hasattr(lldb, "SBDebugger") or not hasattr(lldb.SBDebugger, "Create"):
+        lldb = None
+except Exception:
     lldb = None
 
 MAX_STEPS_DEFAULT = 1000
@@ -126,11 +128,11 @@ def serialize_lldb_value(val: Any, depth: int = 0) -> Dict[str, Any]:
     return {"type": type_name, "value": val_str or summary, "repr": val_str or summary or "?"}
 
 def trace_cpp(code: str, stdin_data: str, max_steps: int = MAX_STEPS_DEFAULT) -> Dict[str, Any]:
-    if lldb is None:
+    if lldb is None or not hasattr(lldb, "SBDebugger") or not hasattr(lldb.SBDebugger, "Create"):
         return {
             "status": "SERVER_ERROR",
             "language": "cpp",
-            "error": "LLDB Python module is not available on this system.",
+            "error": "LLDB Python module (SBDebugger) is not available or incompatible on this system.",
             "totalSteps": 0,
             "stdout": "",
             "steps": []
@@ -284,9 +286,21 @@ def trace_cpp(code: str, stdin_data: str, max_steps: int = MAX_STEPS_DEFAULT) ->
 
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "--cli":
-        payload = json.loads(sys.stdin.read())
-        code_input = payload.get("code", "")
-        stdin_input = payload.get("input", "")
-        max_steps = payload.get("maxSteps", MAX_STEPS_DEFAULT)
-        result = trace_cpp(code_input, stdin_input, max_steps)
-        print(json.dumps(result))
+        try:
+            payload = json.loads(sys.stdin.read())
+            code_input = payload.get("code", "")
+            stdin_input = payload.get("input", "")
+            max_steps = payload.get("maxSteps", MAX_STEPS_DEFAULT)
+            result = trace_cpp(code_input, stdin_input, max_steps)
+            print(json.dumps(result))
+        except Exception as e:
+            err_str = str(e)
+            is_lldb = "lldb" in err_str.lower() or "debugger" in err_str.lower()
+            print(json.dumps({
+                "status": "SERVER_ERROR" if is_lldb else "RUNTIME_ERROR",
+                "language": "cpp",
+                "error": f"C++ execution engine error: {err_str}",
+                "totalSteps": 0,
+                "stdout": "",
+                "steps": []
+            }))

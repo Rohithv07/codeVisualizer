@@ -37,7 +37,11 @@ public class CppTraceRunner implements LanguageRunner {
         File errFile = File.createTempFile("cpp_trace_err_", ".log");
 
         try {
-            ProcessBuilder pb = new ProcessBuilder("python3", tracerScript.getAbsolutePath(), "--cli");
+            String pythonCmd = "python3";
+            if (new File("/usr/bin/python3").exists()) {
+                pythonCmd = "/usr/bin/python3";
+            }
+            ProcessBuilder pb = new ProcessBuilder(pythonCmd, tracerScript.getAbsolutePath(), "--cli");
             pb.redirectOutput(outFile);
             pb.redirectError(errFile);
 

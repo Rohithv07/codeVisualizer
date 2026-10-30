@@ -39,3 +39,4 @@ jobs:
 
       - name: Build Application Jar
         run: ./mvnw -f backend/pom.xml package -DskipTests
+

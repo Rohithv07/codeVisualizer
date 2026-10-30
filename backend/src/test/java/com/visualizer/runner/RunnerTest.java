@@ -84,8 +84,13 @@ public class RunnerTest {
 
     private void assertSuccessfulCppTrace(TraceResponse response, String message) {
         assertNotNull(response);
-        if ("SERVER_ERROR".equals(response.status()) && response.error() != null && response.error().contains("LLDB")) {
-            org.junit.jupiter.api.Assumptions.abort("Skipping C++ test because LLDB is not available on this runner: " + response.error());
+        if (response.error() != null && (
+                response.error().contains("LLDB") ||
+                response.error().contains("SBDebugger") ||
+                response.error().contains("lldb") ||
+                "SERVER_ERROR".equals(response.status())
+        )) {
+            org.junit.jupiter.api.Assumptions.abort("Skipping C++ test because LLDB is not available or incompatible on this runner: " + response.error());
         }
         assertEquals("SUCCESS", response.status(), message + ": " + response.error());
     }

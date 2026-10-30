@@ -1,0 +1,1181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CodeTrace - Step-by-Step DSA Execution Visualizer</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        dark: {
+                            900: '#0f172a',
+                            800: '#1e293b',
+                            700: '#334155',
+                            600: '#475569'
+                        },
+                        accent: {
+                            blue: '#38bdf8',
+                            emerald: '#34d399',
+                            amber: '#fbbf24',
+                            rose: '#f43f5e'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- CodeMirror for Code Editing & Highlight -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/dracula.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/clike/clike.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/python/python.min.js"></script>
+    <style>
+        .CodeMirror {
+            height: 100%;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-size: 14px;
+            background: #0f172a !important;
+            border-radius: 0.5rem;
+        }
+        .cm-s-dracula.CodeMirror {
+            background-color: #0f172a !important;
+        }
+        .executing-line {
+            background-color: rgba(56, 189, 248, 0.25) !important;
+            border-left: 3px solid #38bdf8;
+        }
+        .executing-line-return {
+            background-color: rgba(52, 211, 153, 0.25) !important;
+            border-left: 3px solid #34d399;
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans antialiased select-none">
+
+    <!-- Top Navigation Bar -->
+    <header class="bg-slate-900 border-b border-slate-800 px-6 py-3 flex items-center justify-between shrink-0 shadow-md">
+        <div class="flex items-center space-x-3">
+            <div class="w-9 h-9 rounded-lg bg-sky-500/10 border border-sky-500/30 flex items-center justify-center text-sky-400">
+                <i data-lucide="play-circle" class="w-5 h-5"></i>
+            </div>
+            <div>
+                <h1 class="text-base font-bold tracking-tight text-white flex items-center gap-2">
+                    CodeTrace <span class="text-xs px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-400 font-mono font-medium">DSA Visualizer</span>
+                </h1>
+                <p class="text-xs text-slate-400">Step-by-step variable & algorithm tracer for Competitive Programming</p>
+            </div>
+        </div>
+
+        <div class="flex items-center space-x-4">
+            <!-- Template Selector -->
+            <div class="flex items-center space-x-2">
+                <label class="text-xs text-slate-400 font-medium">Template:</label>
+                <select id="templateSelector" class="bg-slate-800 border border-slate-700 text-xs text-slate-200 rounded-md px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-sky-500">
+                    <option value="java_twopointers">Java: Two Pointers (Reverse Array)</option>
+                    <option value="java_binarysearch">Java: Binary Search</option>
+                    <option value="cpp_twopointers">C++: Two Pointers (Reverse Array)</option>
+                    <option value="cpp_binarysearch">C++: Binary Search</option>
+                    <option value="python_binarysearch">Python: Binary Search</option>
+                    <option value="python_bubblesort">Python: Bubble Sort</option>
+                    <option value="python_linkedlist">Python: Reverse Linked List</option>
+                    <option value="python_tree">Python: Binary Tree DFS Traversal</option>
+                    <option value="python_graph">Python: Graph BFS (Adjacency List)</option>
+                    <option value="java_2dgrid">Java: 2D Grid / Matrix Path</option>
+                </select>
+            </div>
+
+            <!-- Language Selector -->
+            <div class="flex items-center space-x-2">
+                <label class="text-xs text-slate-400 font-medium">Language:</label>
+                <select id="languageSelector" class="bg-slate-800 border border-slate-700 text-xs text-slate-200 rounded-md px-2.5 py-1.5 font-semibold focus:outline-none focus:ring-1 focus:ring-sky-500">
+                    <option value="java">Java (JDK 17 JDI)</option>
+                    <option value="cpp">C++ (Clang / LLDB)</option>
+                    <option value="python">Python 3</option>
+                </select>
+            </div>
+
+            <!-- Run Button -->
+            <button id="runBtn" class="flex items-center space-x-2 bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold px-4 py-1.5 rounded-md text-xs shadow-lg shadow-sky-500/20 transition-all active:scale-95">
+                <i data-lucide="zap" class="w-4 h-4 fill-current"></i>
+                <span>Visualize Execution</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="flex-1 flex overflow-hidden">
+        
+        <!-- Left Side: Code Editor & Input/Output -->
+        <div class="w-1/2 flex flex-col border-r border-slate-800 bg-slate-900/50">
+            <!-- Code Editor Container -->
+            <div class="flex-1 flex flex-col min-h-0 border-b border-slate-800">
+                <div class="bg-slate-900/90 px-4 py-2 flex items-center justify-between border-b border-slate-800 shrink-0">
+                    <span class="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                        <i data-lucide="code-2" class="w-3.5 h-3.5 text-sky-400"></i> Source Code
+                    </span>
+                    <span id="activeLineIndicator" class="text-xs font-mono text-slate-400">Ready</span>
+                </div>
+                <div class="flex-1 relative overflow-hidden p-2">
+                    <textarea id="codeEditor"></textarea>
+                </div>
+            </div>
+
+            <!-- Stdin & Stdout Splitter -->
+            <div class="h-56 flex shrink-0">
+                <!-- Stdin -->
+                <div class="w-1/2 flex flex-col border-r border-slate-800">
+                    <div class="bg-slate-900/90 px-3 py-1.5 border-b border-slate-800 flex items-center justify-between">
+                        <span class="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                            <i data-lucide="terminal" class="w-3.5 h-3.5 text-amber-400"></i> Standard Input (stdin)
+                        </span>
+                    </div>
+                    <textarea id="stdinInput" class="flex-1 bg-slate-950 p-3 text-xs font-mono text-slate-200 resize-none focus:outline-none" placeholder="Provide problem test case input here..."></textarea>
+                </div>
+
+                <!-- Stdout -->
+                <div class="w-1/2 flex flex-col bg-slate-950">
+                    <div class="bg-slate-900/90 px-3 py-1.5 border-b border-slate-800 flex items-center justify-between">
+                        <span class="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                            <i data-lucide="arrow-up-right" class="w-3.5 h-3.5 text-emerald-400"></i> Program Output (stdout)
+                        </span>
+                    </div>
+                    <pre id="stdoutOutput" class="flex-1 p-3 text-xs font-mono text-emerald-400 overflow-auto whitespace-pre-wrap select-text"></pre>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Side: Step Timeline & Visualizer Inspector -->
+        <div class="w-1/2 flex flex-col bg-slate-950 overflow-hidden">
+            
+            <!-- Timeline Stepper Control Bar -->
+            <div class="bg-slate-900 border-b border-slate-800 p-4 shrink-0 shadow">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center space-x-2">
+                        <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Step:</span>
+                        <span id="stepCounter" class="text-sm font-mono font-bold text-sky-400 bg-sky-500/10 px-2 py-0.5 rounded border border-sky-500/20">0 / 0</span>
+                    </div>
+
+                    <!-- Execution Status -->
+                    <div id="stepInfoBadge" class="text-xs font-mono text-slate-300 bg-slate-800 px-2.5 py-1 rounded border border-slate-700 truncate max-w-sm">
+                        Waiting to execute...
+                    </div>
+
+                    <!-- Playback Controls -->
+                    <div class="flex items-center space-x-1">
+                        <button id="btnFirst" class="p-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-white" title="First Step (Home)">
+                            <i data-lucide="chevrons-left" class="w-4 h-4"></i>
+                        </button>
+                        <button id="btnPrev" class="p-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-white" title="Previous Step (Left Arrow)">
+                            <i data-lucide="chevron-left" class="w-4 h-4"></i>
+                        </button>
+                        <button id="btnPlay" class="p-1.5 rounded bg-sky-500/20 hover:bg-sky-500/30 text-sky-400 px-3 flex items-center gap-1 font-semibold text-xs" title="Auto Play">
+                            <i data-lucide="play" class="w-3.5 h-3.5 fill-current"></i>
+                            <span id="playLabel">Play</span>
+                        </button>
+                        <button id="btnNext" class="p-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-white" title="Next Step (Right Arrow)">
+                            <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                        </button>
+                        <button id="btnLast" class="p-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-white" title="Last Step (End)">
+                            <i data-lucide="chevrons-right" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Step Slider Scrub Bar -->
+                <div class="flex items-center space-x-3">
+                    <input id="stepSlider" type="range" min="0" max="0" value="0" class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-sky-400">
+                </div>
+            </div>
+
+            <!-- Visualization Tabs & Content -->
+            <div class="flex-1 overflow-y-auto p-4 space-y-4">
+                
+                <!-- 1. Array & Pointers Visualizer -->
+                <div id="arrayVisualizerCard" class="bg-slate-900 border border-slate-800 rounded-lg p-4 shadow-sm hidden">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-2 mb-3">
+                        <h3 class="text-xs font-bold text-sky-400 uppercase tracking-wider flex items-center gap-1.5">
+                            <i data-lucide="layers" class="w-3.5 h-3.5"></i> Array / Two Pointers Inspector
+                        </h3>
+                        <span id="arrayVarName" class="text-xs font-mono text-slate-400"></span>
+                    </div>
+                    <!-- Visual Array Container -->
+                    <div id="arrayContainer" class="flex flex-wrap gap-2 py-4 items-center justify-start overflow-x-auto">
+                        <!-- Dynamic Array Elements injected here -->
+                    </div>
+                </div>
+
+                <!-- 2. 2D Grid / Matrix Visualizer -->
+                <div id="matrixVisualizerCard" class="bg-slate-900 border border-slate-800 rounded-lg p-4 shadow-sm hidden">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-2 mb-3">
+                        <h3 class="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                            <i data-lucide="grid" class="w-3.5 h-3.5"></i> 2D Matrix / Grid Inspector
+                        </h3>
+                        <span id="matrixVarName" class="text-xs font-mono text-slate-400"></span>
+                    </div>
+                    <div id="matrixContainer" class="overflow-x-auto py-2">
+                        <!-- Dynamic Matrix injected here -->
+                    </div>
+                </div>
+
+                <!-- 3. Linked List Visualizer -->
+                <div id="linkedListVisualizerCard" class="bg-slate-900 border border-slate-800 rounded-lg p-4 shadow-sm hidden">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-2 mb-3">
+                        <h3 class="text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
+                            <i data-lucide="link-2" class="w-3.5 h-3.5"></i> Linked List Inspector
+                        </h3>
+                        <span id="linkedListVarName" class="text-xs font-mono text-slate-400"></span>
+                    </div>
+                    <div id="linkedListContainer" class="flex items-center space-x-3 overflow-x-auto py-4 px-2">
+                        <!-- Dynamic Linked List Nodes injected here -->
+                    </div>
+                </div>
+
+                <!-- 4. Binary Tree Visualizer -->
+                <div id="treeVisualizerCard" class="bg-slate-900 border border-slate-800 rounded-lg p-4 shadow-sm hidden">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-2 mb-3">
+                        <h3 class="text-xs font-bold text-sky-400 uppercase tracking-wider flex items-center gap-1.5">
+                            <i data-lucide="git-fork" class="w-3.5 h-3.5"></i> Binary Tree Visualizer
+                        </h3>
+                        <span id="treeVarName" class="text-xs font-mono text-slate-400"></span>
+                    </div>
+                    <div id="treeContainer" class="flex justify-center items-center overflow-x-auto py-4">
+                        <!-- Dynamic Tree injected here -->
+                    </div>
+                </div>
+
+                <!-- 5. Graph / Adjacency List Visualizer -->
+                <div id="graphVisualizerCard" class="bg-slate-900 border border-slate-800 rounded-lg p-4 shadow-sm hidden">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-2 mb-3">
+                        <h3 class="text-xs font-bold text-violet-400 uppercase tracking-wider flex items-center gap-1.5">
+                            <i data-lucide="share-2" class="w-3.5 h-3.5"></i> Graph & Adjacency List Visualizer
+                        </h3>
+                        <span id="graphVarName" class="text-xs font-mono text-slate-400"></span>
+                    </div>
+                    <div id="graphContainer" class="grid grid-cols-2 sm:grid-cols-3 gap-3 py-2">
+                        <!-- Dynamic Graph Vertices injected here -->
+                    </div>
+                </div>
+
+                <!-- 3. Variables Table -->
+                <div class="bg-slate-900 border border-slate-800 rounded-lg p-4 shadow-sm">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-2 mb-3">
+                        <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                            <i data-lucide="list-tree" class="w-3.5 h-3.5 text-emerald-400"></i> Local Variables In Scope
+                        </h3>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs font-mono">
+                            <thead>
+                                <tr class="text-slate-400 border-b border-slate-800">
+                                    <th class="py-1.5 px-2 w-1/4">Variable</th>
+                                    <th class="py-1.5 px-2 w-1/4">Type</th>
+                                    <th class="py-1.5 px-2 w-1/2">Current Value</th>
+                                </tr>
+                            </thead>
+                            <tbody id="variablesTableBody" class="divide-y divide-slate-800/60">
+                                <tr>
+                                    <td colspan="3" class="py-4 text-center text-slate-500">Run code to inspect variables</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- 4. Call Stack & Function Hierarchy -->
+                <div class="bg-slate-900 border border-slate-800 rounded-lg p-4 shadow-sm">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-2 mb-3">
+                        <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                            <i data-lucide="git-commit" class="w-3.5 h-3.5 text-rose-400"></i> Call Stack / Recursion
+                        </h3>
+                    </div>
+                    <div id="callStackContainer" class="flex flex-col space-y-1.5 text-xs font-mono">
+                        <span class="text-slate-500 py-1">No active frames</span>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <!-- Client-Side App Logic -->
+    <script>
+        // Pre-defined competitive programming templates
+        const TEMPLATES = {
+            java_twopointers: {
+                language: 'java',
+                input: '5\n10 20 30 40 50',
+                code: `import java.util.*;
+
+public class Solution {
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+        int n = sc.nextInt();
+        int[] arr = new int[n];
+        for (int i = 0; i < n; i++) {
+            arr[i] = sc.nextInt();
+        }
+        
+        int left = 0;
+        int right = n - 1;
+        while (left < right) {
+            int temp = arr[left];
+            arr[left] = arr[right];
+            arr[right] = temp;
+            left++;
+            right--;
+        }
+        
+        for (int i = 0; i < n; i++) {
+            System.out.print(arr[i] + " ");
+        }
+        System.out.println();
+    }
+}`
+            },
+            java_binarysearch: {
+                language: 'java',
+                input: '5\n1 3 5 7 9\n7',
+                code: `import java.util.*;
+
+public class Solution {
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+        int n = sc.nextInt();
+        int[] arr = new int[n];
+        for (int i = 0; i < n; i++) {
+            arr[i] = sc.nextInt();
+        }
+        int target = sc.nextInt();
+        
+        int low = 0;
+        int high = n - 1;
+        int ans = -1;
+        
+        while (low <= high) {
+            int mid = (low + high) / 2;
+            if (arr[mid] == target) {
+                ans = mid;
+                break;
+            } else if (arr[mid] < target) {
+                low = mid + 1;
+            } else {
+                high = mid - 1;
+            }
+        }
+        System.out.println("Result: " + ans);
+    }
+}`
+            },
+            python_binarysearch: {
+                language: 'python',
+                input: '5\n1 3 5 7 9\n7',
+                code: `n = int(input())
+arr = list(map(int, input().split()))
+target = int(input())
+
+low = 0
+high = n - 1
+ans = -1
+
+while low <= high:
+    mid = (low + high) // 2
+    if arr[mid] == target:
+        ans = mid
+        break
+    elif arr[mid] < target:
+        low = mid + 1
+    else:
+        high = mid - 1
+
+print(f"Found at index: {ans}")`
+            },
+            python_bubblesort: {
+                language: 'python',
+                input: '5\n5 2 8 1 4',
+                code: `n = int(input())
+arr = list(map(int, input().split()))
+
+for i in range(n):
+    for j in range(0, n - i - 1):
+        if arr[j] > arr[j + 1]:
+            arr[j], arr[j + 1] = arr[j + 1], arr[j]
+
+print("Sorted:", arr)`
+            },
+            java_2dgrid: {
+                language: 'java',
+                input: '3 3',
+                code: `import java.util.*;
+
+public class Solution {
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+        int r = sc.nextInt();
+        int c = sc.nextInt();
+        int[][] dp = new int[r][c];
+        
+        // Count paths from top-left to bottom-right
+        for (int i = 0; i < r; i++) {
+            for (int j = 0; j < c; j++) {
+                if (i == 0 || j == 0) {
+                    dp[i][j] = 1;
+                } else {
+                    dp[i][j] = dp[i - 1][j] + dp[i][j - 1];
+                }
+            }
+        }
+        System.out.println("Paths: " + dp[r - 1][c - 1]);
+    }
+}`
+            },
+            cpp_twopointers: {
+                language: 'cpp',
+                input: '5\n10 20 30 40 50',
+                code: `#include <iostream>
+using namespace std;
+
+int main() {
+    int n;
+    cin >> n;
+    int arr[5];
+    for (int i = 0; i < n; i++) cin >> arr[i];
+    
+    int left = 0, right = n - 1;
+    while (left < right) {
+        int temp = arr[left];
+        arr[left] = arr[right];
+        arr[right] = temp;
+        left++;
+        right--;
+    }
+    
+    for (int i = 0; i < n; i++) cout << arr[i] << " ";
+    cout << endl;
+    return 0;
+}`
+            },
+            cpp_binarysearch: {
+                language: 'cpp',
+                input: '5\n1 3 5 7 9\n7',
+                code: `#include <iostream>
+using namespace std;
+
+int main() {
+    int n;
+    cin >> n;
+    int arr[5];
+    for (int i = 0; i < n; i++) cin >> arr[i];
+    int target;
+    cin >> target;
+    
+    int low = 0, high = n - 1, ans = -1;
+    while (low <= high) {
+        int mid = (low + high) / 2;
+        if (arr[mid] == target) {
+            ans = mid;
+            break;
+        } else if (arr[mid] < target) {
+            low = mid + 1;
+        } else {
+            high = mid - 1;
+        }
+    }
+    cout << "Found at index: " << ans << endl;
+    return 0;
+}`
+            },
+            python_linkedlist: {
+                language: 'python',
+                input: '',
+                code: `class ListNode:
+    def __init__(self, val=0, next=None):
+        self.val = val
+        self.next = next
+
+# Create: 1 -> 2 -> 3 -> 4
+head = ListNode(1, ListNode(2, ListNode(3, ListNode(4))))
+
+prev = None
+curr = head
+
+while curr:
+    nxt = curr.next
+    curr.next = prev
+    prev = curr
+    curr = nxt
+
+print("Reversal finished!")`
+            },
+            python_tree: {
+                language: 'python',
+                input: '',
+                code: `class TreeNode:
+    def __init__(self, val, left=None, right=None):
+        self.val = val
+        self.left = left
+        self.right = right
+
+# Create binary tree:
+#       10
+#      /  \\
+#     5    15
+root = TreeNode(10, TreeNode(5), TreeNode(15))
+
+total = 0
+def dfs(node):
+    global total
+    if not node:
+        return
+    total += node.val
+    dfs(node.left)
+    dfs(node.right)
+
+dfs(root)
+print("Tree sum:", total)`
+            },
+            python_graph: {
+                language: 'python',
+                input: '',
+                code: `# Adjacency List BFS Traversal
+adj = {
+    0: [1, 2],
+    1: [0, 3],
+    2: [0, 3],
+    3: [1, 2]
+}
+
+visited = [0]
+queue = [0]
+order = []
+
+while queue:
+    u = queue.pop(0)
+    order.append(u)
+    for v in adj[u]:
+        if v not in visited:
+            visited.append(v)
+            queue.append(v)
+
+print("BFS traversal order:", order)`
+            }
+        };
+
+        // Initialize Lucide icons
+        lucide.createIcons();
+
+        // Initialize CodeMirror
+        const editor = CodeMirror.fromTextArea(document.getElementById('codeEditor'), {
+            lineNumbers: true,
+            theme: 'dracula',
+            mode: 'text/x-java',
+            indentUnit: 4,
+            matchBrackets: true,
+            lineWrapping: true
+        });
+
+        let currentLineHandle = null;
+        let traceData = null;
+        let currentStepIndex = 0;
+        let isPlaying = false;
+        let playInterval = null;
+
+        // Elements
+        const templateSelector = document.getElementById('templateSelector');
+        const languageSelector = document.getElementById('languageSelector');
+        const stdinInput = document.getElementById('stdinInput');
+        const stdoutOutput = document.getElementById('stdoutOutput');
+        const runBtn = document.getElementById('runBtn');
+        const activeLineIndicator = document.getElementById('activeLineIndicator');
+        const stepCounter = document.getElementById('stepCounter');
+        const stepInfoBadge = document.getElementById('stepInfoBadge');
+        const stepSlider = document.getElementById('stepSlider');
+        const btnFirst = document.getElementById('btnFirst');
+        const btnPrev = document.getElementById('btnPrev');
+        const btnPlay = document.getElementById('btnPlay');
+        const btnNext = document.getElementById('btnNext');
+        const btnLast = document.getElementById('btnLast');
+        const playLabel = document.getElementById('playLabel');
+        const variablesTableBody = document.getElementById('variablesTableBody');
+        const arrayVisualizerCard = document.getElementById('arrayVisualizerCard');
+        const arrayContainer = document.getElementById('arrayContainer');
+        const arrayVarName = document.getElementById('arrayVarName');
+        const matrixVisualizerCard = document.getElementById('matrixVisualizerCard');
+        const matrixContainer = document.getElementById('matrixContainer');
+        const matrixVarName = document.getElementById('matrixVarName');
+        const linkedListVisualizerCard = document.getElementById('linkedListVisualizerCard');
+        const linkedListContainer = document.getElementById('linkedListContainer');
+        const linkedListVarName = document.getElementById('linkedListVarName');
+        const treeVisualizerCard = document.getElementById('treeVisualizerCard');
+        const treeContainer = document.getElementById('treeContainer');
+        const treeVarName = document.getElementById('treeVarName');
+        const graphVisualizerCard = document.getElementById('graphVisualizerCard');
+        const graphContainer = document.getElementById('graphContainer');
+        const graphVarName = document.getElementById('graphVarName');
+        const callStackContainer = document.getElementById('callStackContainer');
+
+        function getEditorMode(lang) {
+            if (lang === 'python') return 'python';
+            if (lang === 'cpp') return 'text/x-c++src';
+            return 'text/x-java';
+        }
+
+        // Load default template
+        function loadTemplate(key) {
+            const tmpl = TEMPLATES[key];
+            if (!tmpl) return;
+            editor.setValue(tmpl.code);
+            stdinInput.value = tmpl.input;
+            languageSelector.value = tmpl.language;
+            editor.setOption('mode', getEditorMode(tmpl.language));
+            clearActiveLine();
+        }
+
+        templateSelector.addEventListener('change', (e) => loadTemplate(e.target.value));
+        languageSelector.addEventListener('change', (e) => {
+            const lang = e.target.value;
+            editor.setOption('mode', getEditorMode(lang));
+        });
+
+        // Initialize with first template
+        loadTemplate('java_twopointers');
+
+        function clearActiveLine() {
+            if (currentLineHandle) {
+                editor.removeLineClass(currentLineHandle, 'background', 'executing-line');
+                editor.removeLineClass(currentLineHandle, 'background', 'executing-line-return');
+                currentLineHandle = null;
+            }
+        }
+
+        function highlightLine(lineNum, isReturn = false) {
+            clearActiveLine();
+            if (lineNum > 0 && lineNum <= editor.lineCount()) {
+                currentLineHandle = editor.addLineClass(
+                    lineNum - 1,
+                    'background',
+                    isReturn ? 'executing-line-return' : 'executing-line'
+                );
+                editor.scrollIntoView({ line: lineNum - 1, ch: 0 }, 50);
+                activeLineIndicator.textContent = `Line ${lineNum}`;
+            }
+        }
+
+        // Render Step
+        function renderStep(index) {
+            if (!traceData || !traceData.steps || traceData.steps.length === 0) return;
+            if (index < 0) index = 0;
+            if (index >= traceData.steps.length) index = traceData.steps.length - 1;
+            currentStepIndex = index;
+
+            const step = traceData.steps[index];
+            const total = traceData.steps.length;
+
+            stepCounter.textContent = `${index + 1} / ${total}`;
+            stepSlider.value = index;
+
+            // Highlight source code line
+            highlightLine(step.line, step.event === 'return');
+            stepInfoBadge.textContent = `${step.function || 'main'}() [Line ${step.line}] - Event: ${step.event}`;
+
+            // Render Stdout
+            stdoutOutput.textContent = step.totalStdout || '';
+
+            // Render Variables Table
+            renderVariablesTable(step.variables || {});
+
+            // Render DSA Array & Pointer View
+            renderArrayView(step.variables || {});
+
+            // Render 2D Matrix View
+            renderMatrixView(step.variables || {});
+
+            // Render Linked List View
+            renderLinkedListView(step.variables || {});
+
+            // Render Binary Tree View
+            renderTreeView(step.variables || {});
+
+            // Render Graph / Adjacency List View
+            renderGraphView(step.variables || {});
+
+            // Render Call Stack
+            renderCallStack(step.callStack || []);
+        }
+
+        function renderVariablesTable(variables) {
+            const entries = Object.entries(variables);
+            if (entries.length === 0) {
+                variablesTableBody.innerHTML = '<tr><td colspan="3" class="py-3 text-center text-slate-500">No local variables in current scope</td></tr>';
+                return;
+            }
+
+            variablesTableBody.innerHTML = entries.map(([name, varVal]) => {
+                const type = varVal.type || 'unknown';
+                const repr = varVal.repr || (varVal.value !== undefined ? String(varVal.value) : '');
+                return `
+                    <tr class="hover:bg-slate-800/40 transition-colors">
+                        <td class="py-2 px-2 text-sky-400 font-semibold">${escapeHtml(name)}</td>
+                        <td class="py-2 px-2 text-slate-400 text-[11px]">${escapeHtml(type)}</td>
+                        <td class="py-2 px-2 text-emerald-300 break-all">${escapeHtml(repr)}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function renderArrayView(variables) {
+            // Find 1D array variable (first array that is not a matrix)
+            let targetArray = null;
+            let arrayName = '';
+            for (const [k, v] of Object.entries(variables)) {
+                if ((v.type === 'array' || v.type === 'list') && !v.isMatrix && v.values && v.values.length > 0) {
+                    targetArray = v;
+                    arrayName = k;
+                    break;
+                }
+            }
+
+            if (!targetArray) {
+                arrayVisualizerCard.classList.add('hidden');
+                return;
+            }
+
+            arrayVisualizerCard.classList.remove('hidden');
+            arrayVarName.textContent = `${arrayName} [length: ${targetArray.length}]`;
+
+            // Detect integer pointer variables pointing to array indices (e.g. left, right, i, j, mid, low, high, ans)
+            const pointersByIndex = {};
+            for (const [k, v] of Object.entries(variables)) {
+                if (k === arrayName) continue;
+                if ((v.type === 'int' || v.type === 'Integer') && typeof v.value === 'number') {
+                    const idx = v.value;
+                    if (idx >= 0 && idx < targetArray.length) {
+                        if (!pointersByIndex[idx]) pointersByIndex[idx] = [];
+                        pointersByIndex[idx].push(k);
+                    }
+                }
+            }
+
+            arrayContainer.innerHTML = targetArray.values.map((elem, idx) => {
+                const valStr = elem.repr || String(elem.value);
+                const ptrs = pointersByIndex[idx] || [];
+                const pointerBadges = ptrs.map(p => `
+                    <span class="bg-amber-500/20 text-amber-400 border border-amber-500/40 px-1.5 py-0.5 rounded text-[10px] font-bold">
+                        ${escapeHtml(p)} ↓
+                    </span>
+                `).join('');
+
+                const isPointed = ptrs.length > 0;
+                return `
+                    <div class="flex flex-col items-center">
+                        <div class="h-6 flex items-center space-x-1 mb-1">
+                            ${pointerBadges}
+                        </div>
+                        <div class="w-14 h-14 rounded-md border ${isPointed ? 'border-amber-400 bg-amber-500/10 shadow-lg shadow-amber-500/10' : 'border-slate-700 bg-slate-800'} flex items-center justify-center text-sm font-mono font-bold text-white transition-all">
+                            ${escapeHtml(valStr)}
+                        </div>
+                        <span class="text-[11px] font-mono text-slate-500 mt-1">[${idx}]</span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderMatrixView(variables) {
+            let targetMatrix = null;
+            let matrixName = '';
+            for (const [k, v] of Object.entries(variables)) {
+                if ((v.type === 'array' || v.type === 'list') && v.isMatrix && v.values && v.values.length > 0) {
+                    targetMatrix = v;
+                    matrixName = k;
+                    break;
+                }
+            }
+
+            if (!targetMatrix) {
+                matrixVisualizerCard.classList.add('hidden');
+                return;
+            }
+
+            matrixVisualizerCard.classList.remove('hidden');
+            matrixVarName.textContent = `${matrixName} [${targetMatrix.length} x ${targetMatrix.values[0]?.length || '?'}]`;
+
+            let tableHtml = '<table class="border-collapse font-mono text-xs mx-auto">';
+            targetMatrix.values.forEach((row, rIdx) => {
+                tableHtml += '<tr>';
+                if (row.values) {
+                    row.values.forEach((cell, cIdx) => {
+                        const cellVal = cell.repr || String(cell.value);
+                        tableHtml += `
+                            <td class="border border-slate-700 bg-slate-800/80 p-2 text-center text-emerald-300 font-semibold min-w-[40px] hover:bg-slate-700/60">
+                                ${escapeHtml(cellVal)}
+                            </td>
+                        `;
+                    });
+                }
+                tableHtml += '</tr>';
+            });
+            tableHtml += '</table>';
+            matrixContainer.innerHTML = tableHtml;
+        }
+
+        function renderLinkedListView(variables) {
+            // Find an object with a 'next' field (ListNode)
+            let headObj = null;
+            let headName = '';
+            for (const [k, v] of Object.entries(variables)) {
+                if (v && v.type === 'object' && v.fields && 'next' in v.fields) {
+                    if (k === 'head' || !headObj) {
+                        headObj = v;
+                        headName = k;
+                    }
+                }
+            }
+
+            if (!headObj) {
+                linkedListVisualizerCard.classList.add('hidden');
+                return;
+            }
+
+            linkedListVisualizerCard.classList.remove('hidden');
+            linkedListVarName.textContent = `Chain starting at ${headName}`;
+
+            // Traverse chain
+            const nodes = [];
+            const visitedIds = new Set();
+            let curr = headObj;
+            while (curr && curr.type === 'object' && !visitedIds.has(curr.id)) {
+                visitedIds.add(curr.id);
+                const valObj = curr.fields?.val || curr.fields?.data || { repr: '?' };
+                nodes.push({
+                    id: curr.id,
+                    val: valObj.repr || String(valObj.value || '?')
+                });
+                curr = curr.fields?.next;
+            }
+
+            // Find pointers pointing to each node id
+            const pointersByNodeId = {};
+            for (const [k, v] of Object.entries(variables)) {
+                if (v && v.type === 'object' && v.id) {
+                    if (!pointersByNodeId[v.id]) pointersByNodeId[v.id] = [];
+                    pointersByNodeId[v.id].push(k);
+                }
+            }
+
+            let html = '';
+            nodes.forEach((n, idx) => {
+                const ptrs = pointersByNodeId[n.id] || [];
+                const pointerBadges = ptrs.map(p => `
+                    <span class="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-1.5 py-0.5 rounded text-[10px] font-bold">
+                        ${escapeHtml(p)} ↓
+                    </span>
+                `).join('');
+
+                const isPointed = ptrs.length > 0;
+                html += `
+                    <div class="flex flex-col items-center shrink-0">
+                        <div class="h-6 flex items-center space-x-1 mb-1">
+                            ${pointerBadges}
+                        </div>
+                        <div class="flex items-center">
+                            <div class="px-3 py-2 rounded-md border ${isPointed ? 'border-emerald-400 bg-emerald-500/10 shadow-lg shadow-emerald-500/20' : 'border-slate-700 bg-slate-800'} flex items-center space-x-2 font-mono text-xs font-bold text-white transition-all">
+                                <span>val: <span class="text-emerald-400">${escapeHtml(n.val)}</span></span>
+                                <span class="text-slate-500">|</span>
+                                <span class="text-sky-400 text-[10px]">next</span>
+                            </div>
+                            ${idx < nodes.length - 1 ? '<span class="text-slate-500 mx-2 text-lg font-bold">→</span>' : '<span class="text-slate-500 mx-2 text-xs font-mono">→ null</span>'}
+                        </div>
+                    </div>
+                `;
+            });
+
+            linkedListContainer.innerHTML = html;
+        }
+
+        function renderTreeView(variables) {
+            // Find an object with 'left' or 'right' fields (TreeNode)
+            let rootObj = null;
+            let rootName = '';
+            for (const [k, v] of Object.entries(variables)) {
+                if (v && v.type === 'object' && v.fields && ('left' in v.fields || 'right' in v.fields)) {
+                    if (k === 'root' || !rootObj) {
+                        rootObj = v;
+                        rootName = k;
+                    }
+                }
+            }
+
+            if (!rootObj) {
+                treeVisualizerCard.classList.add('hidden');
+                return;
+            }
+
+            treeVisualizerCard.classList.remove('hidden');
+            treeVarName.textContent = `Tree Root: ${rootName}`;
+
+            // Helper to recursively build tree HTML
+            function buildTreeNode(node) {
+                if (!node || node.type !== 'object' || !node.fields) {
+                    return '<div class="text-[10px] font-mono text-slate-600 p-1">null</div>';
+                }
+                const valObj = node.fields.val || node.fields.data || { repr: '?' };
+                const valStr = valObj.repr || String(valObj.value || '?');
+                const leftChild = node.fields.left;
+                const rightChild = node.fields.right;
+                const hasChildren = (leftChild && leftChild.type === 'object') || (rightChild && rightChild.type === 'object');
+
+                return `
+                    <div class="flex flex-col items-center m-1">
+                        <div class="w-10 h-10 rounded-full border-2 border-sky-400 bg-sky-500/20 flex items-center justify-center font-mono text-xs font-bold text-white shadow-md shadow-sky-500/20">
+                            ${escapeHtml(valStr)}
+                        </div>
+                        ${hasChildren ? `
+                            <div class="flex items-start justify-center border-t border-slate-700 pt-2 mt-2 space-x-4">
+                                <div class="flex flex-col items-center">${buildTreeNode(leftChild)}</div>
+                                <div class="flex flex-col items-center">${buildTreeNode(rightChild)}</div>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }
+
+            treeContainer.innerHTML = buildTreeNode(rootObj);
+        }
+
+        function renderGraphView(variables) {
+            // Find an adjacency list variable (dict or array with name 'adj' or 'graph')
+            let graphVar = null;
+            let graphName = '';
+            for (const [k, v] of Object.entries(variables)) {
+                if ((k.toLowerCase().includes('adj') || k.toLowerCase().includes('graph')) && (v.type === 'dict' || v.type === 'array' || v.type === 'list')) {
+                    graphVar = v;
+                    graphName = k;
+                    break;
+                }
+            }
+
+            if (!graphVar) {
+                graphVisualizerCard.classList.add('hidden');
+                return;
+            }
+
+            graphVisualizerCard.classList.remove('hidden');
+            graphVarName.textContent = `Adjacency List: ${graphName}`;
+
+            // Check visited set / array
+            const visitedSet = new Set();
+            for (const [k, v] of Object.entries(variables)) {
+                if (k.toLowerCase().includes('visit')) {
+                    if (v.values && Array.isArray(v.values)) {
+                        v.values.forEach(item => visitedSet.add(String(item.value !== undefined ? item.value : item.repr)));
+                    }
+                }
+            }
+
+            let html = '';
+            const dictMap = graphVar.entries || graphVar.fields || (graphVar.type === 'dict' && typeof graphVar.values === 'object' && !Array.isArray(graphVar.values) ? graphVar.values : null);
+            if (dictMap) {
+                for (const [u, neighbors] of Object.entries(dictMap)) {
+                    const isVisited = visitedSet.has(String(u));
+                    const nList = neighbors.values || [];
+                    const neighborBadges = nList.map(n => `
+                        <span class="bg-violet-500/20 text-violet-300 border border-violet-500/30 px-1.5 py-0.5 rounded text-[10px] font-mono">
+                            ${escapeHtml(n.repr || String(n.value))}
+                        </span>
+                    `).join('');
+
+                    html += `
+                        <div class="p-2.5 rounded-lg border ${isVisited ? 'border-emerald-500 bg-emerald-500/10' : 'border-slate-800 bg-slate-900'} flex flex-col space-y-1.5">
+                            <div class="flex items-center justify-between">
+                                <span class="w-6 h-6 rounded-full ${isVisited ? 'bg-emerald-500 text-slate-950' : 'bg-slate-700 text-white'} flex items-center justify-center font-mono text-xs font-bold">
+                                    ${escapeHtml(u)}
+                                </span>
+                                ${isVisited ? '<span class="text-[10px] text-emerald-400 font-semibold uppercase">Visited</span>' : ''}
+                            </div>
+                            <div class="text-[11px] text-slate-400 flex items-center gap-1 flex-wrap">
+                                <span>Edges:</span> ${neighborBadges || '<span class="text-slate-600">none</span>'}
+                            </div>
+                        </div>
+                    `;
+                }
+            } else if ((graphVar.type === 'array' || graphVar.type === 'list') && graphVar.values) {
+                graphVar.values.forEach((neighbors, u) => {
+                    const isVisited = visitedSet.has(String(u));
+                    const nList = neighbors.values || [];
+                    const neighborBadges = nList.map(n => `
+                        <span class="bg-violet-500/20 text-violet-300 border border-violet-500/30 px-1.5 py-0.5 rounded text-[10px] font-mono">
+                            ${escapeHtml(n.repr || String(n.value))}
+                        </span>
+                    `).join('');
+
+                    html += `
+                        <div class="p-2.5 rounded-lg border ${isVisited ? 'border-emerald-500 bg-emerald-500/10' : 'border-slate-800 bg-slate-900'} flex flex-col space-y-1.5">
+                            <div class="flex items-center justify-between">
+                                <span class="w-6 h-6 rounded-full ${isVisited ? 'bg-emerald-500 text-slate-950' : 'bg-slate-700 text-white'} flex items-center justify-center font-mono text-xs font-bold">
+                                    ${u}
+                                </span>
+                                ${isVisited ? '<span class="text-[10px] text-emerald-400 font-semibold uppercase">Visited</span>' : ''}
+                            </div>
+                            <div class="text-[11px] text-slate-400 flex items-center gap-1 flex-wrap">
+                                <span>Edges:</span> ${neighborBadges || '<span class="text-slate-600">none</span>'}
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+
+            graphContainer.innerHTML = html;
+        }
+
+        function renderCallStack(callStack) {
+            if (callStack.length === 0) {
+                callStackContainer.innerHTML = '<span class="text-slate-500 py-1">No active frames</span>';
+                return;
+            }
+
+            callStackContainer.innerHTML = callStack.map((frame, idx) => `
+                <div class="flex items-center justify-between px-3 py-1.5 rounded ${idx === callStack.length - 1 ? 'bg-sky-500/10 border border-sky-500/30 text-sky-300 font-semibold' : 'bg-slate-800/60 text-slate-400'}">
+                    <span>${escapeHtml(frame.function)}()</span>
+                    <span class="text-slate-500 text-[11px]">Line ${frame.line}</span>
+                </div>
+            `).join('');
+        }
+
+        function escapeHtml(str) {
+            if (str === null || str === undefined) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        // Stepper Navigation
+        btnFirst.addEventListener('click', () => { pause(); renderStep(0); });
+        btnPrev.addEventListener('click', () => { pause(); renderStep(currentStepIndex - 1); });
+        btnNext.addEventListener('click', () => { pause(); renderStep(currentStepIndex + 1); });
+        btnLast.addEventListener('click', () => { pause(); if (traceData) renderStep(traceData.steps.length - 1); });
+        stepSlider.addEventListener('input', (e) => { pause(); renderStep(parseInt(e.target.value)); });
+
+        // Auto Play
+        function play() {
+            if (!traceData || traceData.steps.length === 0) return;
+            isPlaying = true;
+            playLabel.textContent = 'Pause';
+            playInterval = setInterval(() => {
+                if (currentStepIndex < traceData.steps.length - 1) {
+                    renderStep(currentStepIndex + 1);
+                } else {
+                    pause();
+                }
+            }, 600);
+        }
+
+        function pause() {
+            isPlaying = false;
+            playLabel.textContent = 'Play';
+            if (playInterval) clearInterval(playInterval);
+        }
+
+        btnPlay.addEventListener('click', () => {
+            if (isPlaying) pause();
+            else {
+                if (currentStepIndex >= (traceData?.steps?.length || 0) - 1) {
+                    renderStep(0);
+                }
+                play();
+            }
+        });
+
+        // Keyboard navigation (Left / Right Arrow keys)
+        window.addEventListener('keydown', (e) => {
+            if (document.activeElement === stdinInput || editor.hasFocus()) return;
+            if (e.key === 'ArrowLeft') {
+                pause();
+                renderStep(currentStepIndex - 1);
+            } else if (e.key === 'ArrowRight') {
+                pause();
+                renderStep(currentStepIndex + 1);
+            } else if (e.key === ' ') {
+                e.preventDefault();
+                btnPlay.click();
+            }
+        });
+
+        // Run & Trace Execution Request
+        runBtn.addEventListener('click', async () => {
+            pause();
+            runBtn.disabled = true;
+            runBtn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i><span>Tracing...</span>';
+            lucide.createIcons();
+            stepInfoBadge.textContent = 'Compiling and stepping through execution...';
+
+            const payload = {
+                language: languageSelector.value,
+                code: editor.getValue(),
+                input: stdinInput.value,
+                maxSteps: 1000
+            };
+
+            try {
+                const res = await fetch('/api/trace', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                traceData = data;
+
+                if (data.status === 'SUCCESS' || data.status === 'STEP_LIMIT_EXCEEDED') {
+                    stepSlider.max = (data.steps.length - 1) >= 0 ? data.steps.length - 1 : 0;
+                    stepSlider.value = 0;
+                    renderStep(0);
+                    if (data.status === 'STEP_LIMIT_EXCEEDED') {
+                        stepInfoBadge.textContent = `Warning: ${data.error}`;
+                    }
+                } else {
+                    traceData = null;
+                    stepCounter.textContent = '0 / 0';
+                    stepSlider.max = 0;
+                    stepSlider.value = 0;
+                    stepInfoBadge.textContent = `Error: [${data.status}] ${data.error || 'Failed'}`;
+                    stdoutOutput.textContent = (data.error || 'Execution failed');
+                    clearActiveLine();
+                    variablesTableBody.innerHTML = '<tr><td colspan="3" class="py-4 text-center text-rose-400">Execution failed: ' + escapeHtml(data.error || data.status) + '</td></tr>';
+                    arrayVisualizerCard.classList.add('hidden');
+                    matrixVisualizerCard.classList.add('hidden');
+                    linkedListVisualizerCard.classList.add('hidden');
+                    treeVisualizerCard.classList.add('hidden');
+                    graphVisualizerCard.classList.add('hidden');
+                    callStackContainer.innerHTML = '<span class="text-slate-500 py-1">No active frames</span>';
+                }
+            } catch (err) {
+                stepInfoBadge.textContent = `Network / Server Error: ${err.message}`;
+            } finally {
+                runBtn.disabled = false;
+                runBtn.innerHTML = '<i data-lucide="zap" class="w-4 h-4 fill-current"></i><span>Visualize Execution</span>';
+                lucide.createIcons();
+            }
+        });
+    </script>
+</body>
+</html>
+

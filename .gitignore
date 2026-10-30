@@ -1,0 +1,27 @@
+# Dependencies & Tools
+.maven/
+node_modules/
+.m2/
+
+# Build outputs
+target/
+backend/target/
+build/
+dist/
+*.class
+*.jar
+*.war
+
+# Temporary execution files
+*.tmp
+temp_*/
+
+# IDE & Editor files
+.idea/
+*.iml
+.vscode/
+.DS_Store
+
+# Logs
+*.log
+

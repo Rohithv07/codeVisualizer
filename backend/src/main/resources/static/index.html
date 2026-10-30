@@ -733,12 +733,23 @@ public:
             return count;
         }
 
+        function checkIsNaryTree(root) {
+            if (!root || !root.fields) return false;
+            // If root has left or right that is an object, it is DEFINITELY a binary tree!
+            if (root.fields.left && root.fields.left.type === 'object') return false;
+            if (root.fields.right && root.fields.right.type === 'object') return false;
+            // If children has elements, it is an N-ary tree
+            const cl = getChildrenList(root.fields.children);
+            if (cl.length > 0) return true;
+            if ('left' in root.fields || 'right' in root.fields) return false;
+            return Boolean(root.fields.children);
+        }
+
         function preprocessTreeData(data) {
             canonicalTree = null;
             if (!data || !data.steps) return;
             let maxCount = 0;
             let bestRoot = null;
-            let isNary = false;
 
             for (const step of data.steps) {
                 if (!step.variables) continue;
@@ -748,9 +759,6 @@ public:
                         if (count > maxCount) {
                             maxCount = count;
                             bestRoot = v;
-                            if (v.fields && v.fields.children) {
-                                isNary = true;
-                            }
                         }
                     }
                 }
@@ -758,7 +766,7 @@ public:
             if (bestRoot) {
                 canonicalTree = {
                     root: bestRoot,
-                    isNary: isNary,
+                    isNary: checkIsNaryTree(bestRoot),
                     size: maxCount
                 };
             }
@@ -806,13 +814,14 @@ public:
                 lucide.createIcons();
             }
 
-            // Refresh tree root if current step holds an updated version
+            // Only update tree root if current step holds an equally complete or larger tree (e.g. tree mutation)
             if (step.variables) {
                 for (const v of Object.values(step.variables)) {
                     if (isTreeNodeObject(v)) {
                         const count = getTreeSize(v);
-                        if (count >= canonicalTree.size || (v.id && canonicalTree.root.id && v.id === canonicalTree.root.id)) {
+                        if (count >= canonicalTree.size) {
                             canonicalTree.root = v;
+                            canonicalTree.size = count;
                         }
                     }
                 }
@@ -938,10 +947,16 @@ public:
                     nodeStyleClass = "border-emerald-500/60 bg-emerald-950/20 text-emerald-300 font-semibold";
                 }
 
-                // N-ary Tree children
+                // Determine whether to render as N-ary or Binary
                 const childrenField = node.fields.children;
-                if (childrenField) {
-                    const childList = getChildrenList(childrenField);
+                const childList = childrenField ? getChildrenList(childrenField) : [];
+                const leftChild = node.fields.left;
+                const rightChild = node.fields.right;
+                const hasLeft = leftChild && leftChild.type === 'object';
+                const hasRight = rightChild && rightChild.type === 'object';
+                const isNary = Boolean(canonicalTree && canonicalTree.isNary);
+
+                if (isNary && childList.length > 0) {
                     return `
                         <div class="flex flex-col items-center m-1.5">
                             <div class="relative flex flex-col items-center">
@@ -950,25 +965,19 @@ public:
                                     ${escapeHtml(valStr)}
                                 </div>
                             </div>
-                            ${childList.length > 0 ? `
-                                <div class="flex items-start justify-center border-t border-slate-700/80 pt-3 mt-3 gap-3">
-                                    ${childList.map((c, idx) => `
-                                        <div class="flex flex-col items-center">
-                                            <span class="text-[9px] font-mono text-slate-400 mb-1 font-semibold">[${idx}]</span>
-                                            ${buildTreeNode(c)}
-                                        </div>
-                                    `).join('')}
-                                </div>
-                            ` : ''}
+                            <div class="flex items-start justify-center border-t border-slate-700/80 pt-3 mt-3 gap-3">
+                                ${childList.map((c, idx) => `
+                                    <div class="flex flex-col items-center">
+                                        <span class="text-[9px] font-mono text-slate-400 mb-1 font-semibold">[${idx}]</span>
+                                        ${buildTreeNode(c)}
+                                    </div>
+                                `).join('')}
+                            </div>
                         </div>
                     `;
                 }
 
                 // Binary Tree (left, right)
-                const leftChild = node.fields.left;
-                const rightChild = node.fields.right;
-                const hasLeft = leftChild && leftChild.type === 'object';
-                const hasRight = rightChild && rightChild.type === 'object';
                 const hasChildren = hasLeft || hasRight;
 
                 return `

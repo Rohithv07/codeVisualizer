@@ -38,8 +38,21 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/clike/clike.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/python/python.min.js"></script>
     <style>
+        html, body {
+            height: 100vh;
+            height: 100dvh;
+            max-height: 100vh;
+            overflow: hidden !important;
+            margin: 0;
+            padding: 0;
+        }
         .CodeMirror {
-            height: 100%;
+            position: absolute !important;
+            top: 8px;
+            left: 8px;
+            right: 8px;
+            bottom: 8px;
+            height: calc(100% - 16px) !important;
             font-family: 'JetBrains Mono', 'Fira Code', monospace;
             font-size: 14px;
             background: #0f172a !important;
@@ -71,9 +84,18 @@
         ::-webkit-scrollbar-thumb:hover {
             background: #475569;
         }
+        @keyframes pulse-ring {
+            0% { transform: scale(0.95); opacity: 0.8; }
+            50% { transform: scale(1.15); opacity: 0.2; }
+            100% { transform: scale(0.95); opacity: 0.8; }
+        }
+        .pulse-ring {
+            animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+            transform-origin: center;
+        }
     </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans antialiased select-none">
+<body class="bg-slate-950 text-slate-100 h-screen max-h-screen overflow-hidden flex flex-col font-sans antialiased select-none">
 
     <!-- Top Navigation Bar -->
     <header class="bg-slate-900 border-b border-slate-800 px-6 py-3 flex items-center justify-between shrink-0 shadow-md">
@@ -109,12 +131,12 @@
     </header>
 
     <!-- Main Workspace -->
-    <main class="flex-1 flex overflow-hidden">
+    <main class="flex-1 flex overflow-hidden min-h-0">
         
         <!-- Left Side: Code Editor & Input/Output -->
-        <div class="w-1/2 flex flex-col border-r border-slate-800 bg-slate-900/50">
+        <div class="w-1/2 flex flex-col border-r border-slate-800 bg-slate-900/50 min-h-0 h-full overflow-hidden">
             <!-- Code Editor Container -->
-            <div class="flex-1 flex flex-col min-h-0 border-b border-slate-800">
+            <div class="flex-1 flex flex-col min-h-0 border-b border-slate-800 overflow-hidden">
                 <div class="bg-slate-900/90 px-4 py-2 flex items-center justify-between border-b border-slate-800 shrink-0">
                     <span class="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
                         <i data-lucide="code-2" class="w-3.5 h-3.5 text-sky-400"></i> Source Code
@@ -126,7 +148,7 @@
                         <span id="activeLineIndicator" class="text-xs font-mono text-slate-400">Ready</span>
                     </div>
                 </div>
-                <div class="flex-1 relative overflow-hidden p-2">
+                <div class="flex-1 relative overflow-hidden p-2 min-h-0">
                     <textarea id="codeEditor"></textarea>
                 </div>
             </div>
@@ -156,7 +178,7 @@
         </div>
 
         <!-- Right Side: Step Timeline & Visualizer Inspector -->
-        <div class="w-1/2 flex flex-col bg-slate-950 overflow-hidden">
+        <div class="w-1/2 flex flex-col bg-slate-950 overflow-hidden min-h-0 h-full">
             
             <!-- Timeline Stepper Control Bar -->
             <div class="bg-slate-900 border-b border-slate-800 p-4 shrink-0 shadow">
@@ -199,7 +221,7 @@
             </div>
 
             <!-- Visualization Tabs & Content -->
-            <div class="flex-1 overflow-y-auto p-4 space-y-4">
+            <div id="visualizerScrollArea" class="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
                 
                 <!-- 1. Binary & N-ary Tree Visualizer -->
                 <div id="treeVisualizerCard" class="bg-slate-900 border border-slate-800 rounded-lg p-4 shadow-sm hidden">
@@ -231,7 +253,58 @@
                     </div>
                 </div>
 
-                <!-- 2. Array & Pointers Visualizer -->
+                <!-- 2. Interactive Graph Visualizer (Canvas & Adjacency List) -->
+                <div id="graphVisualizerCard" class="bg-slate-900 border border-slate-800 rounded-lg p-4 shadow-sm hidden">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-2 mb-2">
+                        <div class="flex items-center gap-2">
+                            <h3 class="text-xs font-bold text-violet-400 uppercase tracking-wider flex items-center gap-1.5">
+                                <i data-lucide="share-2" class="w-3.5 h-3.5"></i> Graph Visualizer
+                            </h3>
+                            <span id="graphTypeBadge" class="text-[10px] font-mono px-2 py-0.5 rounded bg-violet-500/10 text-violet-400 border border-violet-500/20">Directed Graph</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <div class="flex items-center bg-slate-950 p-0.5 rounded-md border border-slate-800">
+                                <button id="btnGraphCanvas" class="text-[10px] font-semibold px-2 py-1 rounded bg-violet-600 text-white shadow-sm flex items-center gap-1">
+                                    <i data-lucide="network" class="w-3 h-3"></i> Canvas
+                                </button>
+                                <button id="btnGraphList" class="text-[10px] font-semibold px-2 py-1 rounded text-slate-400 hover:text-slate-200 flex items-center gap-1">
+                                    <i data-lucide="list" class="w-3 h-3"></i> Adj List
+                                </button>
+                            </div>
+                            <div id="graphStatusBadge" class="text-xs font-mono px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700 flex items-center gap-1.5">
+                                <!-- Dynamic graph state -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Legend -->
+                    <div class="flex items-center gap-4 text-[10px] font-medium text-slate-400 pb-2 mb-2 border-b border-slate-800/60 flex-wrap">
+                        <span class="flex items-center gap-1.5">
+                            <span class="w-2.5 h-2.5 rounded-full bg-amber-400 ring-2 ring-amber-400/30"></span> Active (u)
+                        </span>
+                        <span class="flex items-center gap-1.5">
+                            <span class="w-2.5 h-2.5 rounded-full bg-sky-400 ring-2 ring-sky-400/30"></span> Neighbor (v)
+                        </span>
+                        <span class="flex items-center gap-1.5">
+                            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/30"></span> Visited / Settled
+                        </span>
+                        <span class="flex items-center gap-1.5">
+                            <span class="w-3 h-0.5 bg-amber-400"></span> Active Edge
+                        </span>
+                    </div>
+
+                    <!-- Visual SVG Canvas Container -->
+                    <div id="graphCanvasView" class="w-full flex justify-center items-center py-2 bg-slate-950/60 rounded-lg border border-slate-800/80 min-h-[260px] overflow-x-auto">
+                        <svg id="graphSvg" viewBox="0 0 500 280" class="w-full max-w-[500px] h-[280px] overflow-visible select-none"></svg>
+                    </div>
+
+                    <!-- Adjacency List Container (Alternative Tab) -->
+                    <div id="graphListView" class="grid grid-cols-2 sm:grid-cols-3 gap-3 py-2 hidden">
+                        <!-- Dynamic Graph Vertices injected here -->
+                    </div>
+                </div>
+
+                <!-- 3. Array & Pointers Visualizer -->
                 <div id="arrayVisualizerCard" class="bg-slate-900 border border-slate-800 rounded-lg p-4 shadow-sm hidden">
                     <div class="flex items-center justify-between border-b border-slate-800 pb-2 mb-3">
                         <h3 class="text-xs font-bold text-sky-400 uppercase tracking-wider flex items-center gap-1.5">
@@ -245,7 +318,7 @@
                     </div>
                 </div>
 
-                <!-- 3. 2D Grid / Matrix Visualizer -->
+                <!-- 4. 2D Grid / Matrix Visualizer -->
                 <div id="matrixVisualizerCard" class="bg-slate-900 border border-slate-800 rounded-lg p-4 shadow-sm hidden">
                     <div class="flex items-center justify-between border-b border-slate-800 pb-2 mb-3">
                         <h3 class="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
@@ -258,7 +331,7 @@
                     </div>
                 </div>
 
-                <!-- 4. Linked List Visualizer -->
+                <!-- 5. Linked List Visualizer -->
                 <div id="linkedListVisualizerCard" class="bg-slate-900 border border-slate-800 rounded-lg p-4 shadow-sm hidden">
                     <div class="flex items-center justify-between border-b border-slate-800 pb-2 mb-3">
                         <h3 class="text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
@@ -268,19 +341,6 @@
                     </div>
                     <div id="linkedListContainer" class="flex items-center space-x-3 overflow-x-auto py-4 px-2">
                         <!-- Dynamic Linked List Nodes injected here -->
-                    </div>
-                </div>
-
-                <!-- 5. Graph / Adjacency List Visualizer -->
-                <div id="graphVisualizerCard" class="bg-slate-900 border border-slate-800 rounded-lg p-4 shadow-sm hidden">
-                    <div class="flex items-center justify-between border-b border-slate-800 pb-2 mb-3">
-                        <h3 class="text-xs font-bold text-violet-400 uppercase tracking-wider flex items-center gap-1.5">
-                            <i data-lucide="share-2" class="w-3.5 h-3.5"></i> Graph & Adjacency List Visualizer
-                        </h3>
-                        <span id="graphVarName" class="text-xs font-mono text-slate-400"></span>
-                    </div>
-                    <div id="graphContainer" class="grid grid-cols-2 sm:grid-cols-3 gap-3 py-2">
-                        <!-- Dynamic Graph Vertices injected here -->
                     </div>
                 </div>
 
@@ -397,9 +457,33 @@ public:
         const treeStatusBadge = document.getElementById('treeStatusBadge');
         const treeTypeBadge = document.getElementById('treeTypeBadge');
         const graphVisualizerCard = document.getElementById('graphVisualizerCard');
-        const graphContainer = document.getElementById('graphContainer');
-        const graphVarName = document.getElementById('graphVarName');
+        const graphTypeBadge = document.getElementById('graphTypeBadge');
+        const graphStatusBadge = document.getElementById('graphStatusBadge');
+        const btnGraphCanvas = document.getElementById('btnGraphCanvas');
+        const btnGraphList = document.getElementById('btnGraphList');
+        const graphCanvasView = document.getElementById('graphCanvasView');
+        const graphListView = document.getElementById('graphListView');
+        const graphSvg = document.getElementById('graphSvg');
+        const visualizerScrollArea = document.getElementById('visualizerScrollArea');
         const callStackContainer = document.getElementById('callStackContainer');
+
+        let graphViewMode = 'canvas';
+
+        btnGraphCanvas.addEventListener('click', () => {
+            graphViewMode = 'canvas';
+            btnGraphCanvas.className = 'text-[10px] font-semibold px-2 py-1 rounded bg-violet-600 text-white shadow-sm flex items-center gap-1';
+            btnGraphList.className = 'text-[10px] font-semibold px-2 py-1 rounded text-slate-400 hover:text-slate-200 flex items-center gap-1';
+            graphCanvasView.classList.remove('hidden');
+            graphListView.classList.add('hidden');
+        });
+
+        btnGraphList.addEventListener('click', () => {
+            graphViewMode = 'list';
+            btnGraphList.className = 'text-[10px] font-semibold px-2 py-1 rounded bg-violet-600 text-white shadow-sm flex items-center gap-1';
+            btnGraphCanvas.className = 'text-[10px] font-semibold px-2 py-1 rounded text-slate-400 hover:text-slate-200 flex items-center gap-1';
+            graphCanvasView.classList.add('hidden');
+            graphListView.classList.remove('hidden');
+        });
 
         function getEditorMode(lang) {
             if (lang === 'python') return 'python';
@@ -426,6 +510,13 @@ public:
             stdinInput.value = '';
             stdoutOutput.textContent = '';
             clearActiveLine();
+            canonicalTree = null;
+            canonicalGraph = null;
+            if (treeVisualizerCard) treeVisualizerCard.classList.add('hidden');
+            if (graphVisualizerCard) graphVisualizerCard.classList.add('hidden');
+            if (arrayVisualizerCard) arrayVisualizerCard.classList.add('hidden');
+            if (matrixVisualizerCard) matrixVisualizerCard.classList.add('hidden');
+            if (linkedListVisualizerCard) linkedListVisualizerCard.classList.add('hidden');
             editor.focus();
         });
 
@@ -447,6 +538,11 @@ public:
                 );
                 editor.scrollIntoView({ line: lineNum - 1, ch: 0 }, 50);
                 activeLineIndicator.textContent = `Line ${lineNum}`;
+
+                // Prevent the outer browser window from scrolling
+                if (window.scrollY !== 0 || window.scrollX !== 0) {
+                    window.scrollTo(0, 0);
+                }
             }
         }
 
@@ -467,16 +563,24 @@ public:
             highlightLine(step.line, step.event === 'return');
             stepInfoBadge.textContent = `${step.function || 'main'}() [Line ${step.line}] - Event: ${step.event}`;
 
+            // Ensure window stays at top
+            if (window.scrollY !== 0 || window.scrollX !== 0) {
+                window.scrollTo(0, 0);
+            }
+
             // Render Stdout
             stdoutOutput.textContent = step.totalStdout || '';
 
             // Render Variables Table
             renderVariablesTable(step.variables || {});
 
-            // Render Binary & N-ary Tree View FIRST
+            // Render Binary & N-ary Tree View
             renderTreeView(step, index);
 
-            // Render DSA Array & Pointer View (hidden if tree is active)
+            // Render Graph Visualizer
+            renderGraphView(step, index);
+
+            // Render DSA Array & Pointer View (hidden if tree or graph is active)
             renderArrayView(step.variables || {});
 
             // Render 2D Matrix View
@@ -484,9 +588,6 @@ public:
 
             // Render Linked List View
             renderLinkedListView(step.variables || {});
-
-            // Render Graph / Adjacency List View
-            renderGraphView(step.variables || {});
 
             // Render Call Stack
             renderCallStack(step.callStack || []);
@@ -513,8 +614,8 @@ public:
         }
 
         function renderArrayView(variables) {
-            // If tree visualizer is active, hide the array visualizer card completely
-            if (canonicalTree && canonicalTree.root) {
+            // If tree visualizer or graph visualizer is active, hide the array visualizer card completely
+            if ((canonicalTree && canonicalTree.root) || (canonicalGraph && canonicalGraph.nodes.length > 0)) {
                 arrayVisualizerCard.classList.add('hidden');
                 return;
             }
@@ -583,6 +684,10 @@ public:
             let targetMatrix = null;
             let matrixName = '';
             for (const [k, v] of Object.entries(variables)) {
+                // If graph visualizer is active, skip edges matrix to keep the visualization clean
+                if (canonicalGraph && canonicalGraph.nodes.length > 0 && (k.toLowerCase() === 'edges' || k.toLowerCase().includes('edge'))) {
+                    continue;
+                }
                 if ((v.type === 'array' || v.type === 'list') && v.isMatrix && v.values && v.values.length > 0) {
                     targetMatrix = v;
                     matrixName = k;
@@ -1007,89 +1112,533 @@ public:
             treeContainer.innerHTML = buildTreeNode(canonicalTree.root);
         }
 
-        function renderGraphView(variables) {
-            // Find an adjacency list variable (dict or array with name 'adj' or 'graph')
-            let graphVar = null;
-            let graphName = '';
-            for (const [k, v] of Object.entries(variables)) {
-                if ((k.toLowerCase().includes('adj') || k.toLowerCase().includes('graph')) && (v.type === 'dict' || v.type === 'array' || v.type === 'list')) {
-                    graphVar = v;
-                    graphName = k;
-                    break;
+        let canonicalGraph = null;
+
+        function preprocessGraphData(data) {
+            canonicalGraph = null;
+            if (!data || !data.steps) return;
+
+            let bestGraph = null;
+            let maxScore = -1;
+
+            for (const step of data.steps) {
+                if (!step.variables) continue;
+                const g = extractGraphFromVariables(step.variables);
+                if (g) {
+                    const score = g.nodes.length * 10 + g.edges.length;
+                    if (score > maxScore) {
+                        maxScore = score;
+                        bestGraph = g;
+                    }
                 }
             }
 
-            if (!graphVar) {
+            if (bestGraph && bestGraph.nodes.length > 0) {
+                canonicalGraph = bestGraph;
+            }
+        }
+
+        function extractGraphFromVariables(variables) {
+            let graphVar = null;
+            let graphName = '';
+            let edgesVar = null;
+            let nVal = null;
+            let labelsStr = null;
+
+            for (const [k, v] of Object.entries(variables)) {
+                if (!v) continue;
+                const lower = k.toLowerCase();
+                if ((lower === 'n' || lower === 'v' || lower === 'numvertices' || lower === 'numnodes') && 
+                    (v.type === 'int' || v.type === 'Integer' || typeof v.value === 'number')) {
+                    nVal = v.value;
+                }
+                if (lower.includes('label') && (v.type === 'String' || typeof v.value === 'string')) {
+                    labelsStr = v.value;
+                }
+                if ((lower.includes('adj') || lower.includes('graph') || lower === 'g') && 
+                    (v.type === 'array' || v.type === 'list' || v.type === 'dict')) {
+                    graphVar = v;
+                    graphName = k;
+                }
+                if ((lower.includes('edge') || lower === 'edges') && v.isMatrix && Array.isArray(v.values)) {
+                    edgesVar = v;
+                }
+            }
+
+            const nodeSet = new Set();
+            const edges = [];
+
+            if (typeof nVal === 'number' && nVal > 0 && nVal <= 50) {
+                for (let i = 0; i < nVal; i++) nodeSet.add(i);
+            }
+
+            if (graphVar) {
+                const dictMap = graphVar.entries || graphVar.fields || 
+                    (graphVar.type === 'dict' && typeof graphVar.values === 'object' && !Array.isArray(graphVar.values) ? graphVar.values : null);
+
+                if (dictMap) {
+                    for (const [uStr, nListObj] of Object.entries(dictMap)) {
+                        const u = isNaN(Number(uStr)) ? uStr : Number(uStr);
+                        nodeSet.add(u);
+                        const neighbors = nListObj.values || (Array.isArray(nListObj) ? nListObj : []);
+                        for (const item of neighbors) {
+                            const parsed = parseNeighbor(item);
+                            if (parsed !== null) {
+                                nodeSet.add(parsed.to);
+                                edges.push({ from: u, to: parsed.to, weight: parsed.weight });
+                            }
+                        }
+                    }
+                } else if ((graphVar.type === 'array' || graphVar.type === 'list') && Array.isArray(graphVar.values)) {
+                    graphVar.values.forEach((nListObj, u) => {
+                        nodeSet.add(u);
+                        const neighbors = nListObj.values || (Array.isArray(nListObj) ? nListObj : []);
+                        for (const item of neighbors) {
+                            const parsed = parseNeighbor(item);
+                            if (parsed !== null) {
+                                nodeSet.add(parsed.to);
+                                edges.push({ from: u, to: parsed.to, weight: parsed.weight });
+                            }
+                        }
+                    });
+                }
+            }
+
+            if (edges.length === 0 && edgesVar && Array.isArray(edgesVar.values)) {
+                for (const row of edgesVar.values) {
+                    const vals = (row.values || []).map(x => x.value !== undefined ? x.value : x);
+                    if (vals.length >= 2) {
+                        const u = vals[0];
+                        const to = vals[1];
+                        const w = vals.length >= 3 ? vals[2] : null;
+                        nodeSet.add(u);
+                        nodeSet.add(to);
+                        edges.push({ from: u, to: to, weight: w });
+                    }
+                }
+            }
+
+            if (nodeSet.size === 0 && edges.length === 0) return null;
+
+            const sortedNodes = Array.from(nodeSet).sort((a, b) => {
+                if (typeof a === 'number' && typeof b === 'number') return a - b;
+                return String(a).localeCompare(String(b));
+            });
+
+            const nodes = sortedNodes.map(id => {
+                let sublabel = '';
+                if (labelsStr && typeof id === 'number' && id < labelsStr.length) {
+                    sublabel = labelsStr.charAt(id);
+                }
+                return { id, label: String(id), sublabel };
+            });
+
+            return {
+                name: graphName || 'graph',
+                nodes: nodes,
+                edges: edges,
+                directed: true,
+                hasWeights: edges.some(e => e.weight !== null && e.weight !== undefined)
+            };
+        }
+
+        function parseNeighbor(item) {
+            if (!item) return null;
+            if (typeof item === 'number' || typeof item === 'string') {
+                return { to: item, weight: null };
+            }
+            if (item.type === 'int' || item.type === 'long') {
+                return { to: item.value, weight: null };
+            }
+            if ((item.type === 'array' || Array.isArray(item.values)) && item.values) {
+                const to = item.values[0]?.value ?? item.values[0];
+                const weight = item.values[1]?.value ?? item.values[1] ?? null;
+                if (to !== undefined) return { to, weight };
+            }
+            if (item.type === 'object' && item.fields) {
+                const fields = item.fields;
+                const toObj = fields.node || fields.v || fields.to || fields.dest || fields.target || fields.first;
+                const wObj = fields.distance || fields.dist || fields.weight || fields.cost || fields.w || fields.second;
+                const to = toObj?.value ?? (toObj?.repr ? parseInt(toObj.repr) : null);
+                const weight = wObj?.value ?? (wObj?.repr ? parseInt(wObj.repr) : null);
+                if (to !== null && to !== undefined && !isNaN(to)) {
+                    return { to, weight };
+                }
+            }
+            return null;
+        }
+
+        function renderGraphView(step, stepIndex) {
+            if (!canonicalGraph || !canonicalGraph.nodes || canonicalGraph.nodes.length === 0) {
                 graphVisualizerCard.classList.add('hidden');
                 return;
             }
 
             graphVisualizerCard.classList.remove('hidden');
-            graphVarName.textContent = `Adjacency List: ${graphName}`;
 
-            // Check visited set / array
-            const visitedSet = new Set();
-            for (const [k, v] of Object.entries(variables)) {
-                if (k.toLowerCase().includes('visit')) {
-                    if (v.values && Array.isArray(v.values)) {
-                        v.values.forEach(item => visitedSet.add(String(item.value !== undefined ? item.value : item.repr)));
+            const typeBadge = document.getElementById('graphTypeBadge');
+            if (typeBadge) {
+                typeBadge.textContent = canonicalGraph.hasWeights ? 'Weighted Graph' : 'Directed Graph';
+            }
+
+            const variables = step.variables || {};
+
+            // 1. Detect Active Node (u)
+            let activeNodeId = null;
+            let activeNodeVar = '';
+            const nodePriorityVars = ['u', 'curr', 'cur', 'node', 'src', 'vertex', 'p', 'i'];
+            for (const name of nodePriorityVars) {
+                if (name in variables) {
+                    const val = variables[name]?.value;
+                    if (typeof val === 'number') {
+                        activeNodeId = val;
+                        activeNodeVar = name;
+                        break;
                     }
                 }
             }
 
-            let html = '';
-            const dictMap = graphVar.entries || graphVar.fields || (graphVar.type === 'dict' && typeof graphVar.values === 'object' && !Array.isArray(graphVar.values) ? graphVar.values : null);
-            if (dictMap) {
-                for (const [u, neighbors] of Object.entries(dictMap)) {
-                    const isVisited = visitedSet.has(String(u));
-                    const nList = neighbors.values || [];
-                    const neighborBadges = nList.map(n => `
-                        <span class="bg-violet-500/20 text-violet-300 border border-violet-500/30 px-1.5 py-0.5 rounded text-[10px] font-mono">
-                            ${escapeHtml(n.repr || String(n.value))}
-                        </span>
-                    `).join('');
-
-                    html += `
-                        <div class="p-2.5 rounded-lg border ${isVisited ? 'border-emerald-500 bg-emerald-500/10' : 'border-slate-800 bg-slate-900'} flex flex-col space-y-1.5">
-                            <div class="flex items-center justify-between">
-                                <span class="w-6 h-6 rounded-full ${isVisited ? 'bg-emerald-500 text-slate-950' : 'bg-slate-700 text-white'} flex items-center justify-center font-mono text-xs font-bold">
-                                    ${escapeHtml(u)}
-                                </span>
-                                ${isVisited ? '<span class="text-[10px] text-emerald-400 font-semibold uppercase">Visited</span>' : ''}
-                            </div>
-                            <div class="text-[11px] text-slate-400 flex items-center gap-1 flex-wrap">
-                                <span>Edges:</span> ${neighborBadges || '<span class="text-slate-600">none</span>'}
-                            </div>
-                        </div>
-                    `;
+            // 2. Detect Active Neighbor / Target (v)
+            let activeNeighborId = null;
+            let activeNeighborVar = '';
+            const neighborPriorityVars = ['v', 'neighbor', 'nxt', 'next', 'target', 'to', 'dest', 'j'];
+            for (const name of neighborPriorityVars) {
+                if (name in variables) {
+                    const varObj = variables[name];
+                    if (varObj) {
+                        if (typeof varObj.value === 'number') {
+                            activeNeighborId = varObj.value;
+                            activeNeighborVar = name;
+                            break;
+                        } else if (varObj.type === 'object' && varObj.fields) {
+                            const toField = varObj.fields.node || varObj.fields.v || varObj.fields.to || varObj.fields.dest || varObj.fields.first;
+                            if (toField && typeof toField.value === 'number') {
+                                activeNeighborId = toField.value;
+                                activeNeighborVar = name;
+                                break;
+                            }
+                        }
+                    }
                 }
-            } else if ((graphVar.type === 'array' || graphVar.type === 'list') && graphVar.values) {
-                graphVar.values.forEach((neighbors, u) => {
-                    const isVisited = visitedSet.has(String(u));
-                    const nList = neighbors.values || [];
-                    const neighborBadges = nList.map(n => `
-                        <span class="bg-violet-500/20 text-violet-300 border border-violet-500/30 px-1.5 py-0.5 rounded text-[10px] font-mono">
-                            ${escapeHtml(n.repr || String(n.value))}
-                        </span>
-                    `).join('');
-
-                    html += `
-                        <div class="p-2.5 rounded-lg border ${isVisited ? 'border-emerald-500 bg-emerald-500/10' : 'border-slate-800 bg-slate-900'} flex flex-col space-y-1.5">
-                            <div class="flex items-center justify-between">
-                                <span class="w-6 h-6 rounded-full ${isVisited ? 'bg-emerald-500 text-slate-950' : 'bg-slate-700 text-white'} flex items-center justify-center font-mono text-xs font-bold">
-                                    ${u}
-                                </span>
-                                ${isVisited ? '<span class="text-[10px] text-emerald-400 font-semibold uppercase">Visited</span>' : ''}
-                            </div>
-                            <div class="text-[11px] text-slate-400 flex items-center gap-1 flex-wrap">
-                                <span>Edges:</span> ${neighborBadges || '<span class="text-slate-600">none</span>'}
-                            </div>
-                        </div>
-                    `;
-                });
             }
 
-            graphContainer.innerHTML = html;
+            // 3. Detect Visited Set / Distances
+            const visitedSet = new Set();
+            for (const [k, v] of Object.entries(variables)) {
+                if (k.toLowerCase().includes('visit')) {
+                    if (v.values && Array.isArray(v.values)) {
+                        v.values.forEach((item, idx) => {
+                            if (typeof item === 'boolean' || item.type === 'boolean') {
+                                if (item.value === true) visitedSet.add(idx);
+                            } else {
+                                const idVal = item.value !== undefined ? item.value : item.repr;
+                                if (idVal !== undefined) visitedSet.add(idVal);
+                            }
+                        });
+                    }
+                }
+            }
+
+            // 4. Distances map (for Dijkstra / BFS)
+            const distanceMap = {};
+            for (const [k, v] of Object.entries(variables)) {
+                if (k.toLowerCase().includes('dist')) {
+                    if (v.values && Array.isArray(v.values)) {
+                        v.values.forEach((dVal, nodeIdx) => {
+                            if (dVal.type === 'int' || typeof dVal.value === 'number') {
+                                distanceMap[nodeIdx] = dVal.value;
+                            } else if (dVal.isMatrix || (dVal.type === 'array' && Array.isArray(dVal.values))) {
+                                let minD = Infinity;
+                                for (const sub of (dVal.values || [])) {
+                                    if (typeof sub.value === 'number' && sub.value >= 0 && sub.value < minD) {
+                                        minD = sub.value;
+                                    }
+                                }
+                                if (minD !== Infinity) {
+                                    distanceMap[nodeIdx] = minD;
+                                }
+                            }
+                        });
+                    }
+                }
+            }
+
+            // Update Status Badge
+            if (activeNodeId !== null && activeNeighborId !== null) {
+                graphStatusBadge.innerHTML = `
+                    <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+                    <span class="text-amber-300 font-bold">${escapeHtml(activeNodeVar)}: ${activeNodeId} → ${escapeHtml(activeNeighborVar)}: ${activeNeighborId}</span>
+                `;
+            } else if (activeNodeId !== null) {
+                graphStatusBadge.innerHTML = `
+                    <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+                    <span class="text-amber-300 font-bold">Active: ${escapeHtml(activeNodeVar)} = ${activeNodeId}</span>
+                `;
+            } else {
+                graphStatusBadge.innerHTML = `
+                    <span class="text-slate-400">V: ${canonicalGraph.nodes.length} | E: ${canonicalGraph.edges.length}</span>
+                `;
+            }
+
+            // Render SVG Visual Canvas
+            renderSvgGraph(activeNodeId, activeNeighborId, visitedSet, distanceMap);
+
+            // Render Adjacency List View
+            renderAdjacencyList(activeNodeId, activeNeighborId, visitedSet, distanceMap);
+        }
+
+        function renderSvgGraph(activeNodeId, activeNeighborId, visitedSet, distanceMap) {
+            const svg = document.getElementById('graphSvg');
+            if (!svg) return;
+
+            const nodes = canonicalGraph.nodes;
+            const edges = canonicalGraph.edges;
+            const N = nodes.length;
+
+            const width = 500;
+            const height = 280;
+            const cx = width / 2;
+            const cy = height / 2;
+
+            const R = Math.min(105, Math.max(70, 40 + N * 14));
+            const coords = {};
+
+            nodes.forEach((node, i) => {
+                if (N === 1) {
+                    coords[node.id] = { x: cx, y: cy };
+                } else if (N === 2) {
+                    coords[node.id] = { x: i === 0 ? cx - 85 : cx + 85, y: cy };
+                } else {
+                    const theta = (2 * Math.PI * i) / N - Math.PI / 2;
+                    coords[node.id] = {
+                        x: Math.round((cx + R * Math.cos(theta)) * 10) / 10,
+                        y: Math.round((cy + R * Math.sin(theta)) * 10) / 10
+                    };
+                }
+            });
+
+            const nodeRadius = 18;
+
+            let defsHtml = `
+                <defs>
+                    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+                        <feGaussianBlur stdDeviation="3" result="blur" />
+                        <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                    </filter>
+                    <marker id="arrow-default" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                        <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#64748b" />
+                    </marker>
+                    <marker id="arrow-active" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                        <path d="M 0 1 L 9 5 L 0 9 z" fill="#fbbf24" />
+                    </marker>
+                    <marker id="arrow-visited" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                        <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#34d399" />
+                    </marker>
+                </defs>
+            `;
+
+            let edgesHtml = '<g class="edges-group">';
+            edges.forEach(edge => {
+                const p1 = coords[edge.from];
+                const p2 = coords[edge.to];
+                if (!p1 || !p2) return;
+
+                const isActiveEdge = (activeNodeId === edge.from && activeNeighborId === edge.to);
+                const isVisitedEdge = visitedSet.has(edge.from) && (visitedSet.has(edge.to) || (distanceMap[edge.to] !== undefined && distanceMap[edge.to] < 1000000));
+                const hasReverse = edges.some(e => e.from === edge.to && e.to === edge.from);
+
+                if (edge.from === edge.to) {
+                    const x = p1.x;
+                    const y = p1.y;
+                    const strokeColor = isActiveEdge ? '#fbbf24' : (isVisitedEdge ? '#34d399' : '#64748b');
+                    const strokeW = isActiveEdge ? 3 : 1.8;
+                    edgesHtml += `
+                        <path d="M ${x - 8} ${y - 16} C ${x - 28} ${y - 45}, ${x + 28} ${y - 45}, ${x + 8} ${y - 16}" 
+                              fill="none" stroke="${strokeColor}" stroke-width="${strokeW}" marker-end="${isActiveEdge ? 'url(#arrow-active)' : 'url(#arrow-default)'}" />
+                    `;
+                    if (edge.weight !== null && edge.weight !== undefined) {
+                        edgesHtml += `
+                            <g transform="translate(${x}, ${y - 42})">
+                                <rect x="-10" y="-7" width="20" height="14" rx="3" fill="#0f172a" stroke="${strokeColor}" stroke-width="1"/>
+                                <text y="3" text-anchor="middle" font-size="9" font-family="monospace" font-weight="bold" fill="#f8fafc">${edge.weight}</text>
+                            </g>
+                        `;
+                    }
+                    return;
+                }
+
+                const dx = p2.x - p1.x;
+                const dy = p2.y - p1.y;
+                const d = Math.hypot(dx, dy);
+                if (d === 0) return;
+
+                const rStart = nodeRadius;
+                const rEnd = nodeRadius + 5;
+
+                const sx = p1.x + (dx / d) * rStart;
+                const sy = p1.y + (dy / d) * rStart;
+                const ex = p2.x - (dx / d) * rEnd;
+                const ey = p2.y - (dy / d) * rEnd;
+
+                const strokeColor = isActiveEdge ? '#fbbf24' : (isVisitedEdge ? '#34d399' : '#475569');
+                const strokeW = isActiveEdge ? 3.2 : (isVisitedEdge ? 2 : 1.6);
+                const marker = isActiveEdge ? 'url(#arrow-active)' : (isVisitedEdge ? 'url(#arrow-visited)' : 'url(#arrow-default)');
+                const dashArray = isActiveEdge ? 'stroke-dasharray="6,3"' : '';
+
+                let pathD = '';
+                let midX = (sx + ex) / 2;
+                let midY = (sy + ey) / 2;
+
+                if (hasReverse) {
+                    const nx = -dy / d;
+                    const ny = dx / d;
+                    const curveOffset = 22;
+                    const cpx = (p1.x + p2.x) / 2 + nx * curveOffset;
+                    const cpy = (p1.y + p2.y) / 2 + ny * curveOffset;
+                    pathD = `M ${sx} ${sy} Q ${cpx} ${cpy} ${ex} ${ey}`;
+                    midX = cpx;
+                    midY = cpy;
+                } else {
+                    pathD = `M ${sx} ${sy} L ${ex} ${ey}`;
+                }
+
+                edgesHtml += `
+                    <path d="${pathD}" fill="none" stroke="${strokeColor}" stroke-width="${strokeW}" ${dashArray} marker-end="${marker}" ${isActiveEdge ? 'filter="url(#glow)"' : ''} />
+                `;
+
+                if (edge.weight !== null && edge.weight !== undefined) {
+                    const bgFill = isActiveEdge ? '#451a03' : '#0f172a';
+                    const textColor = isActiveEdge ? '#fef08a' : '#cbd5e1';
+                    edgesHtml += `
+                        <g transform="translate(${midX}, ${midY})">
+                            <rect x="-11" y="-8" width="22" height="16" rx="4" fill="${bgFill}" stroke="${strokeColor}" stroke-width="1.2"/>
+                            <text y="3.5" text-anchor="middle" font-size="9.5" font-family="monospace" font-weight="bold" fill="${textColor}">${edge.weight}</text>
+                        </g>
+                    `;
+                }
+            });
+            edgesHtml += '</g>';
+
+            let nodesHtml = '<g class="nodes-group">';
+            nodes.forEach(node => {
+                const pos = coords[node.id];
+                if (!pos) return;
+                const { x, y } = pos;
+
+                const isActive = (node.id === activeNodeId);
+                const isNeighbor = (node.id === activeNeighborId);
+                const hasFiniteDist = distanceMap[node.id] !== undefined && distanceMap[node.id] < 1000000;
+                const isVisited = visitedSet.has(node.id) || hasFiniteDist;
+
+                let fill = '#1e293b';
+                let stroke = '#475569';
+                let strokeW = 2;
+                let filterAttr = '';
+
+                if (isActive) {
+                    fill = '#92400e';
+                    stroke = '#fbbf24';
+                    strokeW = 3.5;
+                    filterAttr = 'filter="url(#glow)"';
+                } else if (isNeighbor) {
+                    fill = '#0369a1';
+                    stroke = '#38bdf8';
+                    strokeW = 3;
+                } else if (isVisited) {
+                    fill = '#064e3b';
+                    stroke = '#10b981';
+                    strokeW = 2.5;
+                }
+
+                let pingRing = '';
+                if (isActive) {
+                    pingRing = `<circle cx="${x}" cy="${y}" r="27" fill="none" stroke="#fbbf24" stroke-width="2" class="pulse-ring" opacity="0.6"/>`;
+                }
+
+                let topBadge = '';
+                if (isActive) {
+                    topBadge = `<text x="${x}" y="${y - 25}" text-anchor="middle" font-size="9" font-family="monospace" font-weight="900" fill="#fbbf24">ACTIVE [u]</text>`;
+                } else if (isNeighbor) {
+                    topBadge = `<text x="${x}" y="${y - 25}" text-anchor="middle" font-size="9" font-family="monospace" font-weight="bold" fill="#38bdf8">NEIGHBOR [v]</text>`;
+                }
+
+                let mainTextY = node.sublabel ? (y - 1) : (y + 4.5);
+                let labelText = `<text x="${x}" y="${mainTextY}" text-anchor="middle" font-size="12" font-family="monospace" font-weight="bold" fill="#ffffff">${escapeHtml(node.label)}</text>`;
+                let subText = node.sublabel ? `<text x="${x}" y="${y + 10}" text-anchor="middle" font-size="8.5" font-family="monospace" font-weight="600" fill="#cbd5e1">('${escapeHtml(node.sublabel)}')</text>` : '';
+
+                let distText = '';
+                if (distanceMap[node.id] !== undefined) {
+                    const d = distanceMap[node.id];
+                    const isInf = d >= 1000000;
+                    distText = `<text x="${x}" y="${y + 31}" text-anchor="middle" font-size="9" font-family="monospace" font-weight="semibold" fill="${isInf ? '#64748b' : '#34d399'}">d: ${isInf ? '∞' : d}</text>`;
+                }
+
+                nodesHtml += `
+                    <g class="node-item">
+                        ${pingRing}
+                        ${topBadge}
+                        <circle cx="${x}" cy="${y}" r="${isActive ? 20 : nodeRadius}" fill="${fill}" stroke="${stroke}" stroke-width="${strokeW}" ${filterAttr} />
+                        ${labelText}
+                        ${subText}
+                        ${distText}
+                    </g>
+                `;
+            });
+            nodesHtml += '</g>';
+
+            svg.innerHTML = defsHtml + edgesHtml + nodesHtml;
+        }
+
+        function renderAdjacencyList(activeNodeId, activeNeighborId, visitedSet, distanceMap) {
+            const listContainer = document.getElementById('graphListView');
+            if (!listContainer) return;
+
+            let html = '';
+            canonicalGraph.nodes.forEach(node => {
+                const u = node.id;
+                const isActive = (u === activeNodeId);
+                const isVisited = visitedSet.has(u) || (distanceMap[u] !== undefined && distanceMap[u] < 1000000);
+
+                const outgoing = canonicalGraph.edges.filter(e => e.from === u);
+                const neighborBadges = outgoing.map(e => {
+                    const isTargetActive = (isActive && e.to === activeNeighborId);
+                    return `
+                        <span class="${isTargetActive ? 'bg-amber-500/30 text-amber-300 border border-amber-400 font-bold ring-1 ring-amber-400/50' : 'bg-violet-500/20 text-violet-300 border border-violet-500/30'} px-1.5 py-0.5 rounded text-[10px] font-mono">
+                            ${e.to}${e.weight !== null && e.weight !== undefined ? ' (w:' + e.weight + ')' : ''}
+                        </span>
+                    `;
+                }).join('');
+
+                let cardBorder = 'border-slate-800 bg-slate-900';
+                if (isActive) cardBorder = 'border-amber-400 bg-amber-500/10 ring-1 ring-amber-400/30';
+                else if (isVisited) cardBorder = 'border-emerald-500/60 bg-emerald-500/10';
+
+                let nodeCircleStyle = 'bg-slate-700 text-white';
+                if (isActive) nodeCircleStyle = 'bg-amber-400 text-slate-950 font-black';
+                else if (isVisited) nodeCircleStyle = 'bg-emerald-500 text-slate-950 font-bold';
+
+                html += `
+                    <div class="p-2.5 rounded-lg border ${cardBorder} flex flex-col space-y-1.5 transition-all">
+                        <div class="flex items-center justify-between">
+                            <span class="w-6 h-6 rounded-full ${nodeCircleStyle} flex items-center justify-center font-mono text-xs">
+                                ${escapeHtml(node.label)}
+                            </span>
+                            ${isActive ? '<span class="text-[10px] text-amber-400 font-bold uppercase tracking-wider">Active</span>' : 
+                              (isVisited ? '<span class="text-[10px] text-emerald-400 font-semibold uppercase">Visited</span>' : '')}
+                        </div>
+                        <div class="text-[11px] text-slate-400 flex items-center gap-1 flex-wrap">
+                            <span>Edges:</span> ${neighborBadges || '<span class="text-slate-600">none</span>'}
+                        </div>
+                        ${distanceMap[u] !== undefined ? `
+                            <div class="text-[10px] font-mono text-slate-400">
+                                Distance: <span class="${distanceMap[u] < 1000000 ? 'text-emerald-400 font-bold' : 'text-slate-600'}">${distanceMap[u] < 1000000 ? distanceMap[u] : '∞'}</span>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            });
+
+            listContainer.innerHTML = html;
         }
 
         function renderCallStack(callStack) {
@@ -1195,14 +1744,17 @@ public:
                         return;
                     }
                     preprocessTreeData(data);
+                    preprocessGraphData(data);
                     stepSlider.max = data.steps.length - 1;
                     stepSlider.value = 0;
+                    if (visualizerScrollArea) visualizerScrollArea.scrollTop = 0;
                     renderStep(0);
                     if (data.status === 'STEP_LIMIT_EXCEEDED') {
                         stepInfoBadge.textContent = `Warning: ${data.error}`;
                     }
                 } else {
                     canonicalTree = null;
+                    canonicalGraph = null;
                     traceData = null;
                     stepCounter.textContent = '0 / 0';
                     stepSlider.max = 0;

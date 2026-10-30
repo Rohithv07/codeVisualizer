@@ -694,8 +694,17 @@ public:
 
                 // N-ary Tree children
                 const childrenField = node.fields.children;
-                if (childrenField && (childrenField.type === 'array' || Array.isArray(childrenField.values))) {
-                    const childList = childrenField.values || [];
+                let childList = null;
+                if (childrenField) {
+                    if (childrenField.type === 'array' || Array.isArray(childrenField.values)) {
+                        childList = childrenField.values || [];
+                    } else if (childrenField.fields && childrenField.fields.elementData && Array.isArray(childrenField.fields.elementData.values)) {
+                        const size = childrenField.fields.size ? Number(childrenField.fields.size.value) : childrenField.fields.elementData.values.length;
+                        childList = childrenField.fields.elementData.values.slice(0, size);
+                    }
+                }
+
+                if (childList !== null) {
                     return `
                         <div class="flex flex-col items-center m-1">
                             <div class="w-10 h-10 rounded-full border-2 border-sky-400 bg-sky-500/20 flex items-center justify-center font-mono text-xs font-bold text-white shadow-md shadow-sky-500/20">

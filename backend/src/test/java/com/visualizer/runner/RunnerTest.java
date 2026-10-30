@@ -549,4 +549,38 @@ public class RunnerTest {
         assertTrue(response.totalSteps() > 10);
         assertTrue(response.stdout().contains("3"));
     }
+
+    @Test
+    public void testLeetCodeJavaNaryTreeWithNodeClass() throws Exception {
+        // Standard LeetCode 559: Maximum Depth of N-ary Tree using class Node
+        String code = "/*\n" +
+                "// Definition for a Node.\n" +
+                "class Node {\n" +
+                "    public int val;\n" +
+                "    public List<Node> children;\n" +
+                "    public Node() {}\n" +
+                "    public Node(int _val) { val = _val; }\n" +
+                "    public Node(int _val, List<Node> _children) { val = _val; children = _children; }\n" +
+                "};\n" +
+                "*/\n" +
+                "class Solution {\n" +
+                "    public int maxDepth(Node root) {\n" +
+                "        if (root == null) return 0;\n" +
+                "        int max = 0;\n" +
+                "        for (Node child : root.children) {\n" +
+                "            max = Math.max(max, maxDepth(child));\n" +
+                "        }\n" +
+                "        return max + 1;\n" +
+                "    }\n" +
+                "}";
+        String input = "root = [1, null, 3, 2, 4, null, 5, 6]";
+
+        TraceRequest request = new TraceRequest("java", code, input, 300);
+        TraceResponse response = visualizerService.trace(request);
+
+        assertNotNull(response);
+        assertEquals("SUCCESS", response.status(), "N-ary tree with Node failed: " + response.error());
+        assertTrue(response.totalSteps() > 10);
+        assertTrue(response.stdout().contains("3"));
+    }
 }

@@ -399,7 +399,29 @@ public class JavaTraceRunner implements LanguageRunner {
         if (val instanceof ObjectReference objRef) {
             ReferenceType refType = objRef.referenceType();
 
-            // Custom object (e.g. ListNode, TreeNode)
+            // Handle java.util.ArrayList directly as array for clean visualizer rendering
+            if (refType.name().equals("java.util.ArrayList")) {
+                try {
+                    Field sizeField = refType.fieldByName("size");
+                    Field dataField = refType.fieldByName("elementData");
+                    if (sizeField != null && dataField != null) {
+                        Value sizeVal = objRef.getValue(sizeField);
+                        Value dataVal = objRef.getValue(dataField);
+                        if (sizeVal instanceof PrimitiveValue pv && dataVal instanceof ArrayReference dataArr) {
+                            int size = pv.intValue();
+                            int limit = Math.min(size, MAX_COLLECTION_SIZE);
+                            List<Value> rawValues = dataArr.getValues(0, limit);
+                            List<VariableValue> elements = new ArrayList<>();
+                            for (Value elem : rawValues) {
+                                elements.add(serializeJdiValue(elem, depth + 1));
+                            }
+                            return VariableValue.array(size, false, elements);
+                        }
+                    }
+                } catch (Exception ignored) {}
+            }
+
+            // Custom object (e.g. ListNode, TreeNode, Node)
             Map<String, VariableValue> fields = new LinkedHashMap<>();
             try {
                 for (Field field : refType.visibleFields()) {

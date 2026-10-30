@@ -63,7 +63,9 @@ public class LeetCodeHarnessService {
 
         boolean hasListNode = cleanCode.contains("class ListNode") || cleanCode.contains("struct ListNode");
         boolean hasTreeNode = cleanCode.contains("class TreeNode") || cleanCode.contains("struct TreeNode");
-        boolean isNaryTree = cleanCode.contains("children");
+        boolean hasNode = cleanCode.contains("class Node") || cleanCode.contains("struct Node");
+        boolean usesNode = paramsStr.matches(".*\\bNode\\b.*") || returnType.matches(".*\\bNode\\b.*");
+        boolean isNaryTree = cleanCode.contains("children") || usesNode;
         boolean userTreeNodeHasLeft = hasTreeNode && userTreeNodeHasLeft(cleanCode);
 
         StringBuilder mainMethod = new StringBuilder();
@@ -106,6 +108,10 @@ public class LeetCodeHarnessService {
                 mainMethod.append("        } else if (__result instanceof TreeNode __tn) {\n");
                 mainMethod.append("            System.out.println(\"TreeNode(val=\" + __tn.val + \")\");\n");
             }
+            if (usesNode || cleanCode.contains("Node")) {
+                mainMethod.append("        } else if (__result instanceof Node __nd) {\n");
+                mainMethod.append("            System.out.println(\"Node(val=\" + __nd.val + \")\");\n");
+            }
             mainMethod.append("        } else {\n");
             mainMethod.append("            System.out.println(__result);\n");
             mainMethod.append("        }\n");
@@ -123,6 +129,33 @@ public class LeetCodeHarnessService {
             mainMethod.append("            curr = curr.next;\n");
             mainMethod.append("        }\n");
             mainMethod.append("        return dummy.next;\n");
+            mainMethod.append("    }\n\n");
+        }
+
+        // Helper static builder for Node (N-ary tree)
+        if (usesNode || cleanCode.contains("Node")) {
+            mainMethod.append("    public static Node __buildNaryNode(Integer[] vals) {\n");
+            mainMethod.append("        if (vals == null || vals.length == 0 || vals[0] == null) return null;\n");
+            mainMethod.append("        Node root = new Node(vals[0]);\n");
+            mainMethod.append("        Queue<Node> queue = new LinkedList<>();\n");
+            mainMethod.append("        queue.offer(root);\n");
+            mainMethod.append("        int i = 1;\n");
+            mainMethod.append("        if (i < vals.length && vals[i] == null) {\n");
+            mainMethod.append("            i++;\n");
+            mainMethod.append("        }\n");
+            mainMethod.append("        while (!queue.isEmpty() && i < vals.length) {\n");
+            mainMethod.append("            Node parent = queue.poll();\n");
+            mainMethod.append("            if (parent.children == null) parent.children = new ArrayList<>();\n");
+            mainMethod.append("            while (i < vals.length && vals[i] != null) {\n");
+            mainMethod.append("                Node child = new Node(vals[i]);\n");
+            mainMethod.append("                if (child.children == null) child.children = new ArrayList<>();\n");
+            mainMethod.append("                parent.children.add(child);\n");
+            mainMethod.append("                queue.offer(child);\n");
+            mainMethod.append("                i++;\n");
+            mainMethod.append("            }\n");
+            mainMethod.append("            i++;\n");
+            mainMethod.append("        }\n");
+            mainMethod.append("        return root;\n");
             mainMethod.append("    }\n\n");
         }
 
@@ -209,6 +242,15 @@ public class LeetCodeHarnessService {
                     .append("    }\n")
                     .append("}\n");
         }
+        if ((usesNode || cleanCode.contains("Node")) && !hasNode) {
+            definitions.append("\nclass Node {\n")
+                    .append("    public int val;\n")
+                    .append("    public List<Node> children = new ArrayList<>();\n")
+                    .append("    public Node() {}\n")
+                    .append("    public Node(int _val) { val = _val; }\n")
+                    .append("    public Node(int _val, List<Node> _children) { val = _val; children = _children; }\n")
+                    .append("}\n");
+        }
 
         // Insert specifically before the closing brace of class Solution
         int solutionClosingBrace = findClassClosingBrace(code, "Solution");
@@ -249,7 +291,9 @@ public class LeetCodeHarnessService {
 
         boolean hasListNode = cleanCode.contains("struct ListNode") || cleanCode.contains("class ListNode");
         boolean hasTreeNode = cleanCode.contains("struct TreeNode") || cleanCode.contains("class TreeNode");
-        boolean isNaryTree = cleanCode.contains("children");
+        boolean hasNode = cleanCode.contains("struct Node") || cleanCode.contains("class Node");
+        boolean usesNode = paramsStr.matches(".*\\bNode\\b.*") || returnType.matches(".*\\bNode\\b.*");
+        boolean isNaryTree = cleanCode.contains("children") || usesNode;
 
         StringBuilder helpers = new StringBuilder();
 
@@ -273,6 +317,16 @@ public class LeetCodeHarnessService {
                     .append("    TreeNode(int x) : val(x), left(nullptr), right(nullptr) {}\n")
                     .append("    TreeNode(int x, TreeNode *left, TreeNode *right) : val(x), left(left), right(right) {}\n")
                     .append("    TreeNode(int x, vector<TreeNode*> _children) : val(x), left(nullptr), right(nullptr), children(_children) {}\n")
+                    .append("};\n\n");
+        }
+        if ((usesNode || cleanCode.contains("Node")) && !hasNode) {
+            helpers.append("class Node {\n")
+                    .append("public:\n")
+                    .append("    int val;\n")
+                    .append("    vector<Node*> children;\n")
+                    .append("    Node() : val(0) {}\n")
+                    .append("    Node(int _val) : val(_val) {}\n")
+                    .append("    Node(int _val, vector<Node*> _children) : val(_val), children(_children) {}\n")
                     .append("};\n\n");
         }
 
@@ -335,6 +389,29 @@ public class LeetCodeHarnessService {
                     .append("}\n\n");
         }
 
+        if (usesNode || cleanCode.contains("Node")) {
+            helpers.append("Node* __buildNaryNode(const vector<string>& vals) {\n")
+                    .append("    if (vals.empty() || vals[0] == \"null\" || vals[0] == \"None\") return nullptr;\n")
+                    .append("    Node* root = new Node(stoi(vals[0]));\n")
+                    .append("    queue<Node*> q;\n")
+                    .append("    q.push(root);\n")
+                    .append("    size_t i = 1;\n")
+                    .append("    if (i < vals.size() && (vals[i] == \"null\" || vals[i] == \"None\")) i++;\n")
+                    .append("    while (!q.empty() && i < vals.size()) {\n")
+                    .append("        Node* parent = q.front();\n")
+                    .append("        q.pop();\n")
+                    .append("        while (i < vals.size() && vals[i] != \"null\" && vals[i] != \"None\") {\n")
+                    .append("            Node* child = new Node(stoi(vals[i]));\n")
+                    .append("            parent->children.push_back(child);\n")
+                    .append("            q.push(child);\n")
+                    .append("            i++;\n")
+                    .append("        }\n")
+                    .append("        i++;\n")
+                    .append("    }\n")
+                    .append("    return root;\n")
+                    .append("}\n\n");
+        }
+
         StringBuilder mainFunc = new StringBuilder();
         mainFunc.append("\n// Auto-generated driver for LeetCode by CodeTrace\n");
         mainFunc.append("int main() {\n");
@@ -377,6 +454,11 @@ public class LeetCodeHarnessService {
             mainFunc.append("    TreeNode* __result = __sol.").append(methodName).append("(")
                     .append(String.join(", ", argNames)).append(");\n");
             mainFunc.append("    if (__result) cout << \"TreeNode(val=\" << __result->val << \")\" << endl;\n");
+            mainFunc.append("    else cout << \"null\" << endl;\n");
+        } else if (returnType.contains("Node")) {
+            mainFunc.append("    Node* __result = __sol.").append(methodName).append("(")
+                    .append(String.join(", ", argNames)).append(");\n");
+            mainFunc.append("    if (__result) cout << \"Node(val=\" << __result->val << \")\" << endl;\n");
             mainFunc.append("    else cout << \"null\" << endl;\n");
         } else {
             mainFunc.append("    auto __result = __sol.").append(methodName).append("(")
@@ -431,6 +513,12 @@ public class LeetCodeHarnessService {
         header.append("            self.right = right\n");
         header.append("            self.children = children if children is not None else []\n\n");
 
+        header.append("if 'Node' not in locals():\n");
+        header.append("    class Node:\n");
+        header.append("        def __init__(self, val=None, children=None):\n");
+        header.append("            self.val = val\n");
+        header.append("            self.children = children if children is not None else []\n\n");
+
         StringBuilder harness = new StringBuilder();
         harness.append("\n\n# Auto-generated driver for LeetCode by CodeTrace\n");
         harness.append("def __build_list(vals):\n");
@@ -466,7 +554,8 @@ public class LeetCodeHarnessService {
         harness.append("    if not vals or vals[0] is None:\n");
         harness.append("        return None\n");
         harness.append("    from collections import deque\n");
-        harness.append("    root = TreeNode(vals[0])\n");
+        harness.append("    node_cls = Node if 'Node' in globals() or 'Node' in locals() else TreeNode\n");
+        harness.append("    root = node_cls(vals[0])\n");
         harness.append("    queue = deque([root])\n");
         harness.append("    i = 1\n");
         harness.append("    if i < len(vals) and vals[i] is None:\n");
@@ -476,7 +565,7 @@ public class LeetCodeHarnessService {
         harness.append("        if getattr(parent, 'children', None) is None:\n");
         harness.append("            parent.children = []\n");
         harness.append("        while i < len(vals) and vals[i] is not None:\n");
-        harness.append("            child = TreeNode(vals[i])\n");
+        harness.append("            child = node_cls(vals[i])\n");
         harness.append("            if getattr(child, 'children', None) is None:\n");
         harness.append("                child.children = []\n");
         harness.append("            parent.children.append(child)\n");
@@ -500,8 +589,8 @@ public class LeetCodeHarnessService {
         harness.append("                ann = str(p.annotation).lower() if p.annotation != inspect.Parameter.empty else ''\n");
         harness.append("                if ('head' in p_name or 'listnode' in ann) and isinstance(val, list):\n");
         harness.append("                    __call_args.append(__build_list(val))\n");
-        harness.append("                elif ('root' in p_name or 'treenode' in ann) and isinstance(val, list):\n");
-        harness.append("                    if ").append(isNaryTree ? "True" : "False").append(":\n");
+        harness.append("                elif ('root' in p_name or 'treenode' in ann or 'node' in ann) and isinstance(val, list):\n");
+        harness.append("                    if ").append(isNaryTree ? "True" : "False").append(" or 'node' in ann:\n");
         harness.append("                        __call_args.append(__build_nary_tree(val))\n");
         harness.append("                    else:\n");
         harness.append("                        __call_args.append(__build_tree(val))\n");
@@ -769,6 +858,17 @@ public class LeetCodeHarnessService {
             return "null";
         }
 
+        // LeetCode Node (N-ary tree)
+        if (cleanType.equals("Node")) {
+            if (raw != null && raw.startsWith("[") && raw.endsWith("]")) {
+                String inner = raw.substring(1, raw.length() - 1).trim();
+                if (inner.isEmpty()) return "null";
+                String formatted = inner.replaceAll("(?i)\\bnone\\b", "null").replaceAll("(?i)\\bNULL\\b", "null");
+                return "__buildNaryNode(new Integer[]{" + formatted + "})";
+            }
+            return "null";
+        }
+
         return "null";
     }
 
@@ -799,6 +899,25 @@ public class LeetCodeHarnessService {
                 }
                 String builder = isNaryTree ? "__buildNaryTree" : "__buildTree";
                 return builder + "(vector<string>{" + String.join(", ", quoted) + "})";
+            }
+            return "nullptr";
+        }
+
+        if (cleanType.contains("Node*") || cleanType.contains("Node *")) {
+            if (raw != null && raw.startsWith("[") && raw.endsWith("]")) {
+                String inner = raw.substring(1, raw.length() - 1).trim();
+                if (inner.isEmpty()) return "nullptr";
+                String[] parts = inner.split(",");
+                List<String> quoted = new ArrayList<>();
+                for (String p : parts) {
+                    String t = p.trim();
+                    if (t.equalsIgnoreCase("null") || t.equalsIgnoreCase("none")) {
+                        quoted.add("\"null\"");
+                    } else {
+                        quoted.add("\"" + t + "\"");
+                    }
+                }
+                return "__buildNaryNode(vector<string>{" + String.join(", ", quoted) + "})";
             }
             return "nullptr";
         }

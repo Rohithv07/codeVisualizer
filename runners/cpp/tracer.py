@@ -9,13 +9,16 @@ import os
 import json
 import tempfile
 import subprocess
+import glob
 from typing import Any, Dict, List, Optional
 
-# Add LLDB Python library path on macOS
+# Add LLDB Python library path on macOS and Linux
 LLDB_PATHS = [
     "/Library/Developer/CommandLineTools/Library/PrivateFrameworks/LLDB.framework/Resources/Python",
     "/Applications/Xcode.app/Contents/SharedFrameworks/LLDB.framework/Resources/Python"
 ]
+LLDB_PATHS.extend(glob.glob("/usr/lib/llvm-*/lib/python3/dist-packages"))
+LLDB_PATHS.append("/usr/lib/python3/dist-packages")
 for p in LLDB_PATHS:
     if os.path.exists(p) and p not in sys.path:
         sys.path.append(p)

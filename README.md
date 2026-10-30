@@ -1,6 +1,7 @@
 # ⚡ CodeTrace - Step-by-Step DSA Execution Visualizer
 
 [![Java](https://img.shields.io/badge/Java-17%20LTS-orange.svg)](https://www.oracle.com/java/)
+[![Java CI](https://github.com/Rohithv07/codeVisualizer/actions/workflows/ci.yml/badge.svg)](https://github.com/Rohithv07/codeVisualizer/actions/workflows/ci.yml)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.3.4-brightgreen.svg)](https://spring.io/projects/spring-boot)
 [![Python](https://img.shields.io/badge/Python-3.9%2B-blue.svg)](https://www.python.org/)
 [![C++](https://img.shields.io/badge/C%2B%2B-17-blue.svg)](https://isocpp.org/)

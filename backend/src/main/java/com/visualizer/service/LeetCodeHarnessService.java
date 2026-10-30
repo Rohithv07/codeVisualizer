@@ -769,14 +769,13 @@ public class LeetCodeHarnessService {
         }
 
         if (input.contains("=")) {
-            Pattern kvPattern = Pattern.compile("(?<=^|[,\\n])\\s*([A-Za-z0-9_\\[\\]*\\s]+?)\\s*=\\s*(\\[[\\s\\S]*?\\]|\"[^\"]*\"|\\{[^\\}]*\\}|[^,\\n]+)");
-            Matcher m = kvPattern.matcher(input);
-            boolean found = false;
-            while (m.find()) {
-                found = true;
-                parsed.put(m.group(1), m.group(2));
+            Map<String, String> kvs = parseKeyValues(input);
+            if (!kvs.isEmpty()) {
+                for (Map.Entry<String, String> entry : kvs.entrySet()) {
+                    parsed.put(entry.getKey(), entry.getValue());
+                }
+                return parsed;
             }
-            if (found) return parsed;
         }
 
         // Line-by-line fallback
@@ -788,6 +787,97 @@ public class LeetCodeHarnessService {
             }
         }
         return parsed;
+    }
+
+    private Map<String, String> parseKeyValues(String text) {
+        Map<String, String> kvs = new LinkedHashMap<>();
+        int i = 0;
+        int n = text.length();
+
+        while (i < n) {
+            int eqIdx = text.indexOf('=', i);
+            if (eqIdx == -1) {
+                break;
+            }
+
+            // Key is backwards from eqIdx to previous comma, newline, or start
+            int keyStart = eqIdx - 1;
+            while (keyStart >= i && text.charAt(keyStart) != ',' && text.charAt(keyStart) != '\n') {
+                keyStart--;
+            }
+            String key = text.substring(keyStart + 1, eqIdx).trim();
+
+            // Value starts after eqIdx
+            int valStart = eqIdx + 1;
+            while (valStart < n && (text.charAt(valStart) == ' ' || text.charAt(valStart) == '\t')) {
+                valStart++;
+            }
+
+            if (valStart >= n) {
+                break;
+            }
+
+            char firstChar = text.charAt(valStart);
+            int valEnd = valStart;
+
+            if (firstChar == '[') {
+                int bracketDepth = 0;
+                while (valEnd < n) {
+                    char c = text.charAt(valEnd);
+                    if (c == '[') bracketDepth++;
+                    else if (c == ']') {
+                        bracketDepth--;
+                        if (bracketDepth == 0) {
+                            valEnd++;
+                            break;
+                        }
+                    }
+                    valEnd++;
+                }
+            } else if (firstChar == '{') {
+                int braceDepth = 0;
+                while (valEnd < n) {
+                    char c = text.charAt(valEnd);
+                    if (c == '{') braceDepth++;
+                    else if (c == '}') {
+                        braceDepth--;
+                        if (braceDepth == 0) {
+                            valEnd++;
+                            break;
+                        }
+                    }
+                    valEnd++;
+                }
+            } else if (firstChar == '"') {
+                valEnd++;
+                while (valEnd < n) {
+                    char c = text.charAt(valEnd);
+                    char prev = text.charAt(valEnd - 1);
+                    if (c == '"' && prev != '\\') {
+                        valEnd++;
+                        break;
+                    }
+                    valEnd++;
+                }
+            } else {
+                // Scalar: read until ',' or '\n'
+                while (valEnd < n && text.charAt(valEnd) != ',' && text.charAt(valEnd) != '\n') {
+                    valEnd++;
+                }
+            }
+
+            String val = text.substring(valStart, valEnd).trim();
+            if (!key.isEmpty()) {
+                kvs.put(key, val);
+            }
+
+            i = valEnd;
+            while (i < n && (text.charAt(i) == ',' || text.charAt(i) == '\n' || text.charAt(i) == ' ' || text.charAt(i) == '\t')) {
+                i++;
+            }
+        }
+
+        return kvs;
     }
 
     private String generateJavaInitExpr(String type, String raw, boolean isNaryTree) {

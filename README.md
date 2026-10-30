@@ -83,9 +83,23 @@ CodeTrace automatically detects the style of your code and adapts:
   * Reads from standard input (`cin`, `Scanner`, `sys.stdin`) and outputs to `stdout`.
 * **LeetCode Mode (Function-Only `class Solution`)**:
   * You can paste pure `class Solution` code with **no `main()` method**.
+  * Works across **Java, C++, and Python**.
+  * **Linked Lists & Trees Supported Out of the Box**:
+    * **Linked Lists**: Accepts `head = [1, 2, 3, 4, 5]`
+    * **Binary Trees**: Accepts `root = [3, 9, 20, null, null, 15, 7]`
+    * **N-ary Trees**: Accepts `root = [1, null, 3, 2, 4, null, 5, 6]`
+    * Auxiliary node definitions (`class ListNode`, `class TreeNode`, `struct ListNode`, `struct TreeNode`) can be **kept, commented out (like on LeetCode/GFG), or omitted completely** — CodeTrace automatically provides or adapts them across all 3 languages!
   * Accepts LeetCode test case formats directly in the input box:
     ```text
     nums = [2, 7, 11, 15], target = 9
+    ```
+    or for linked lists:
+    ```text
+    head = [1, 2, 3, 4, 5]
+    ```
+    or for trees:
+    ```text
+    root = [1, null, 3, 2, 4, null, 5, 6]
     ```
     or line-by-line:
     ```text
@@ -97,8 +111,8 @@ CodeTrace automatically detects the style of your code and adapts:
 ### 3. Specialized DSA Inspectors
 * **Array & Two-Pointer Visualizer**: Automatically detects 1D arrays and points integer variables (like `i`, `j`, `left`, `right`, `low`, `high`, `mid`, `ans`) directly at their respective indices.
 * **2D Grid & Matrix Visualizer**: Renders 2D arrays or DP matrices into an interactive table.
-* **Linked List Visualizer**: Detects objects with `.next` pointers and displays linked node blocks (`[val: 1 | next] → [val: 2 | next] → null`) with pointer badges.
-* **Binary Tree Visualizer**: Recursively builds a visual hierarchical tree from nodes containing `.left` and `.right` pointers.
+* **Linked List Visualizer**: Detects objects with `.next` pointers and displays linked node chains (`[val: 1 | next] → [val: 2 | next] → null`) with pointer badges (`head`, `curr`, `prev`).
+* **Tree Visualizer (Binary & N-ary)**: Automatically renders interactive hierarchical tree structures for both binary trees (`left`, `right`) and N-ary trees (`children`).
 * **Graph & Adjacency List Visualizer**: Visualizes graphs from dictionaries or 2D vectors, highlighting visited nodes in real time.
 
 ### 3. Built-in Safeguards

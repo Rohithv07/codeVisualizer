@@ -81,6 +81,11 @@ public class JavaTraceRunner implements LanguageRunner {
             code = "public class Main {\n" + code + "\n}";
         }
 
+        // If className is Solution, ensure auxiliary classes are not declared public in the same file
+        if ("Solution".equals(className)) {
+            code = code.replaceAll("\\bpublic\\s+class\\s+(TreeNode|ListNode|Node|Pair)\\b", "class $1");
+        }
+
         Path tempDir = Files.createTempDirectory("dsa_java_");
         Path sourceFile = tempDir.resolve(className + ".java");
 
@@ -411,12 +416,32 @@ public class JavaTraceRunner implements LanguageRunner {
     }
 
     private String extractClassName(String code) {
-        Pattern pattern = Pattern.compile("(?:public\\s+)?class\\s+([A-Za-z0-9_]+)");
-        Matcher matcher = pattern.matcher(code);
-        if (matcher.find()) {
-            return matcher.group(1);
+        String clean = stripComments(code);
+        // Priority 1: Solution (standard LeetCode class where driver main is injected)
+        if (Pattern.compile("\\bclass\\s+Solution\\b").matcher(clean).find()) {
+            return "Solution";
+        }
+        // Priority 2: public class X
+        Matcher pcm = Pattern.compile("public\\s+class\\s+([A-Za-z0-9_]+)").matcher(clean);
+        if (pcm.find()) {
+            return pcm.group(1);
+        }
+        // Priority 3: Main (standard CP class)
+        if (Pattern.compile("\\bclass\\s+Main\\b").matcher(clean).find()) {
+            return "Main";
+        }
+        // Priority 4: First class definition
+        Matcher cm = Pattern.compile("\\bclass\\s+([A-Za-z0-9_]+)").matcher(clean);
+        if (cm.find()) {
+            return cm.group(1);
         }
         return null;
+    }
+
+    private String stripComments(String code) {
+        if (code == null) return "";
+        return code.replaceAll("(?s)/\\*.*?\\*/", " ")
+                   .replaceAll("//.*", " ");
     }
 
     private void deleteDirectory(File dir) {

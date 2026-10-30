@@ -664,11 +664,11 @@ public:
         }
 
         function renderTreeView(variables) {
-            // Find an object with 'left' or 'right' fields (TreeNode)
+            // Find an object with 'left', 'right', or 'children' fields (TreeNode)
             let rootObj = null;
             let rootName = '';
             for (const [k, v] of Object.entries(variables)) {
-                if (v && v.type === 'object' && v.fields && ('left' in v.fields || 'right' in v.fields)) {
+                if (v && v.type === 'object' && v.fields && ('left' in v.fields || 'right' in v.fields || 'children' in v.fields)) {
                     if (k === 'root' || !rootObj) {
                         rootObj = v;
                         rootName = k;
@@ -691,6 +691,26 @@ public:
                 }
                 const valObj = node.fields.val || node.fields.data || { repr: '?' };
                 const valStr = valObj.repr || String(valObj.value || '?');
+
+                // N-ary Tree children
+                const childrenField = node.fields.children;
+                if (childrenField && (childrenField.type === 'array' || Array.isArray(childrenField.values))) {
+                    const childList = childrenField.values || [];
+                    return `
+                        <div class="flex flex-col items-center m-1">
+                            <div class="w-10 h-10 rounded-full border-2 border-sky-400 bg-sky-500/20 flex items-center justify-center font-mono text-xs font-bold text-white shadow-md shadow-sky-500/20">
+                                ${escapeHtml(valStr)}
+                            </div>
+                            ${childList.length > 0 ? `
+                                <div class="flex items-start justify-center border-t border-slate-700 pt-2 mt-2 space-x-3">
+                                    ${childList.map(c => `<div class="flex flex-col items-center">${buildTreeNode(c)}</div>`).join('')}
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                }
+
+                // Binary Tree (left, right)
                 const leftChild = node.fields.left;
                 const rightChild = node.fields.right;
                 const hasChildren = (leftChild && leftChild.type === 'object') || (rightChild && rightChild.type === 'object');

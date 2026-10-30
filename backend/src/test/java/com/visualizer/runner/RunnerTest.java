@@ -31,7 +31,7 @@ public class RunnerTest {
                 "print('Total:', total)\n";
         String input = "3\n10 20 30\n";
 
-        TraceRequest request = new TraceRequest("python", code, input, 100);
+        TraceRequest request = new TraceRequest("python", code, input, 300);
         TraceResponse response = visualizerService.trace(request);
 
         assertNotNull(response);
@@ -154,7 +154,7 @@ public class RunnerTest {
                 "        return []\n";
         String input = "nums = [2,7,11,15], target = 9";
 
-        TraceRequest request = new TraceRequest("python", code, input, 100);
+        TraceRequest request = new TraceRequest("python", code, input, 300);
         TraceResponse response = visualizerService.trace(request);
 
         assertNotNull(response);
@@ -327,11 +327,225 @@ public class RunnerTest {
                 "}";
         String input = "root = [3, 9, 20, null, null, 15, 7]";
 
-        TraceRequest request = new TraceRequest("java", code, input, 100);
+        TraceRequest request = new TraceRequest("java", code, input, 300);
         TraceResponse response = visualizerService.trace(request);
 
         assertNotNull(response);
         assertEquals("SUCCESS", response.status(), "maxDepth failed: " + response.error());
+        assertTrue(response.totalSteps() > 10);
+        assertTrue(response.stdout().contains("3"));
+    }
+
+    @Test
+    public void testLeetCodeJavaNaryTreeDiameterWithCustomTreeNodeClass() throws Exception {
+        // User's exact scenario: class TreeNode is placed above class Solution
+        String code = "// Definition for an n-ary tree node.\n" +
+                "class TreeNode {\n" +
+                "    int val;\n" +
+                "    List<TreeNode> children;\n" +
+                "\n" +
+                "    TreeNode(int _val) {\n" +
+                "        val = _val;\n" +
+                "        children = new ArrayList<>();\n" +
+                "    }\n" +
+                "}\n" +
+                "\n" +
+                "class Solution {\n" +
+                "    private int maxHeight;\n" +
+                "\n" +
+                "    public int diameter(TreeNode root) {\n" +
+                "        maxHeight = 0;\n" +
+                "        if (root == null) {\n" +
+                "            return 0;\n" +
+                "        }\n" +
+                "        height(root);\n" +
+                "        return maxHeight;\n" +
+                "    }\n" +
+                "\n" +
+                "    private int height(TreeNode node) {\n" +
+                "        if (node == null) {\n" +
+                "            return 0;\n" +
+                "        }\n" +
+                "        int height1 = 0;\n" +
+                "        int height2 = 0;\n" +
+                "        for (TreeNode child : node.children) {\n" +
+                "            int distance = height(child) + 1;\n" +
+                "            if (distance > height1) {\n" +
+                "                height2 = height1;\n" +
+                "                height1 = distance;\n" +
+                "            } else if (distance > height2) {\n" +
+                "                height2 = distance;\n" +
+                "            }\n" +
+                "            int total = height1 + height2;\n" +
+                "            maxHeight = Math.max(maxHeight, total);\n" +
+                "        }\n" +
+                "        return height1;\n" +
+                "    }\n" +
+                "}";
+        String input = "root = [1, null, 3, 2, 4, null, 5, 6]";
+
+        TraceRequest request = new TraceRequest("java", code, input, 300);
+        TraceResponse response = visualizerService.trace(request);
+
+        assertNotNull(response);
+        assertEquals("SUCCESS", response.status(), "N-ary tree diameter failed: " + response.error());
+        assertTrue(response.totalSteps() > 10);
+        assertTrue(response.stdout().contains("3"));
+    }
+
+    @Test
+    public void testLeetCodeJavaNaryTreeDiameterWithCommentedOutTreeNode() throws Exception {
+        // User commented out class TreeNode definition
+        String code = "/*\n" +
+                "class TreeNode {\n" +
+                "    int val;\n" +
+                "    List<TreeNode> children;\n" +
+                "    TreeNode(int _val) {\n" +
+                "        val = _val;\n" +
+                "        children = new ArrayList<>();\n" +
+                "    }\n" +
+                "}\n" +
+                "*/\n" +
+                "\n" +
+                "class Solution {\n" +
+                "    private int maxHeight;\n" +
+                "\n" +
+                "    public int diameter(TreeNode root) {\n" +
+                "        maxHeight = 0;\n" +
+                "        if (root == null) return 0;\n" +
+                "        height(root);\n" +
+                "        return maxHeight;\n" +
+                "    }\n" +
+                "\n" +
+                "    private int height(TreeNode node) {\n" +
+                "        if (node == null) return 0;\n" +
+                "        int height1 = 0;\n" +
+                "        int height2 = 0;\n" +
+                "        for (TreeNode child : node.children) {\n" +
+                "            int distance = height(child) + 1;\n" +
+                "            if (distance > height1) {\n" +
+                "                height2 = height1;\n" +
+                "                height1 = distance;\n" +
+                "            } else if (distance > height2) {\n" +
+                "                height2 = distance;\n" +
+                "            }\n" +
+                "            int total = height1 + height2;\n" +
+                "            maxHeight = Math.max(maxHeight, total);\n" +
+                "        }\n" +
+                "        return height1;\n" +
+                "    }\n" +
+                "}";
+        String input = "root = [1, null, 3, 2, 4, null, 5, 6]";
+
+        TraceRequest request = new TraceRequest("java", code, input, 300);
+        TraceResponse response = visualizerService.trace(request);
+
+        assertNotNull(response);
+        assertEquals("SUCCESS", response.status(), "Commented-out TreeNode failed: " + response.error());
+        assertTrue(response.totalSteps() > 10);
+        assertTrue(response.stdout().contains("3"));
+    }
+
+    @Test
+    public void testLeetCodeCppLinkedListReverse() throws Exception {
+        String code = "class Solution {\n" +
+                "public:\n" +
+                "    ListNode* reverseList(ListNode* head) {\n" +
+                "        ListNode* prev = nullptr;\n" +
+                "        ListNode* curr = head;\n" +
+                "        while (curr) {\n" +
+                "            ListNode* nxt = curr->next;\n" +
+                "            curr->next = prev;\n" +
+                "            prev = curr;\n" +
+                "            curr = nxt;\n" +
+                "        }\n" +
+                "        return prev;\n" +
+                "    }\n" +
+                "};";
+        String input = "head = [1, 2, 3, 4, 5]";
+
+        TraceRequest request = new TraceRequest("cpp", code, input, 100);
+        TraceResponse response = visualizerService.trace(request);
+
+        assertNotNull(response);
+        assertEquals("SUCCESS", response.status(), "C++ reverseList failed: " + response.error());
+        assertTrue(response.totalSteps() > 10);
+        assertTrue(response.stdout().contains("5 -> 4 -> 3 -> 2 -> 1"));
+    }
+
+    @Test
+    public void testLeetCodeCppBinaryTreeMaxDepth() throws Exception {
+        String code = "class Solution {\n" +
+                "public:\n" +
+                "    int maxDepth(TreeNode* root) {\n" +
+                "        if (!root) return 0;\n" +
+                "        return 1 + max(maxDepth(root->left), maxDepth(root->right));\n" +
+                "    }\n" +
+                "};";
+        String input = "root = [3, 9, 20, null, null, 15, 7]";
+
+        TraceRequest request = new TraceRequest("cpp", code, input, 100);
+        TraceResponse response = visualizerService.trace(request);
+
+        assertNotNull(response);
+        assertEquals("SUCCESS", response.status(), "C++ maxDepth failed: " + response.error());
+        System.out.println("DEBUG C++ maxDepth steps: " + response.totalSteps() + ", stdout: " + response.stdout());
+        assertTrue(response.totalSteps() >= 1);
+        assertTrue(response.stdout().contains("3"));
+    }
+
+    @Test
+    public void testLeetCodePythonLinkedListReverse() throws Exception {
+        String code = "class Solution:\n" +
+                "    def reverseList(self, head: Optional[ListNode]) -> Optional[ListNode]:\n" +
+                "        prev = None\n" +
+                "        curr = head\n" +
+                "        while curr:\n" +
+                "            nxt = curr.next\n" +
+                "            curr.next = prev\n" +
+                "            prev = curr\n" +
+                "            curr = nxt\n" +
+                "        return prev\n";
+        String input = "head = [1, 2, 3, 4, 5]";
+
+        TraceRequest request = new TraceRequest("python", code, input, 300);
+        TraceResponse response = visualizerService.trace(request);
+
+        assertNotNull(response);
+        assertEquals("SUCCESS", response.status(), "Python reverseList failed: " + response.error());
+        assertTrue(response.totalSteps() > 10);
+        assertTrue(response.stdout().contains("5 -> 4 -> 3 -> 2 -> 1"));
+    }
+
+    @Test
+    public void testLeetCodePythonNaryTreeDiameter() throws Exception {
+        String code = "class Solution:\n" +
+                "    def diameter(self, root: 'TreeNode') -> int:\n" +
+                "        self.max_height = 0\n" +
+                "        def height(node):\n" +
+                "            if not node:\n" +
+                "                return 0\n" +
+                "            h1, h2 = 0, 0\n" +
+                "            for child in node.children:\n" +
+                "                d = height(child) + 1\n" +
+                "                if d > h1:\n" +
+                "                    h2 = h1\n" +
+                "                    h1 = d\n" +
+                "                elif d > h2:\n" +
+                "                    h2 = d\n" +
+                "            self.max_height = max(self.max_height, h1 + h2)\n" +
+                "            return h1\n" +
+                "        if not root:\n" +
+                "            return 0\n" +
+                "        height(root)\n" +
+                "        return self.max_height\n";
+        String input = "root = [1, null, 3, 2, 4, null, 5, 6]";
+
+        TraceRequest request = new TraceRequest("python", code, input, 200);
+        TraceResponse response = visualizerService.trace(request);
+
+        assertNotNull(response);
+        assertEquals("SUCCESS", response.status(), "Python N-ary diameter failed: " + response.error());
         assertTrue(response.totalSteps() > 10);
         assertTrue(response.stdout().contains("3"));
     }

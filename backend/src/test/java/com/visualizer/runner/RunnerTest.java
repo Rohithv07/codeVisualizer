@@ -249,4 +249,41 @@ public class RunnerTest {
         assertTrue(response.totalSteps() > 10);
         assertTrue(response.stdout().contains("3"));
     }
+
+    @Test
+    public void testLeetCodeJavaMaxPackagesWithBracketsInInputKey() throws Exception {
+        String code = "class Solution {\n" +
+                "    public int maxPackages(int[] arr, int totalTime) {\n" +
+                "        if (arr == null || arr.length == 0) return 0;\n" +
+                "        int length = arr.length;\n" +
+                "        int left = 0, right = 0;\n" +
+                "        int prefixSum = 0, maxSum = 0;\n" +
+                "        while (right < length) {\n" +
+                "            prefixSum += arr[right];\n" +
+                "            while (right - left + 1 > totalTime) {\n" +
+                "                prefixSum -= arr[left];\n" +
+                "                left++;\n" +
+                "            }\n" +
+                "            if (right - left + 1 <= totalTime) {\n" +
+                "                maxSum = Math.max(maxSum, prefixSum);\n" +
+                "            }\n" +
+                "            right++;\n" +
+                "        }\n" +
+                "        return maxSum;\n" +
+                "    }\n" +
+                "}";
+        String input = "arr[] = [2, 1, 3, 5, 0, 1, 4], totalTime = 3";
+
+        TraceRequest request = new TraceRequest("java", code, input, 100);
+        TraceResponse response = visualizerService.trace(request);
+
+        assertNotNull(response);
+        assertEquals("SUCCESS", response.status(), "maxPackages failed: " + response.error());
+        assertTrue(response.totalSteps() > 10);
+        boolean found7ElementArray = response.steps().stream()
+                .anyMatch(s -> s.variables().containsKey("arr") &&
+                               s.variables().get("arr").values() != null &&
+                               s.variables().get("arr").values().size() == 7);
+        assertTrue(found7ElementArray, "Array variable was not initialized with the 7 user-provided elements");
+    }
 }

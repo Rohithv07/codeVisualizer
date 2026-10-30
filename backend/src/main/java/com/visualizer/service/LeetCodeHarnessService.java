@@ -47,7 +47,7 @@ public class LeetCodeHarnessService {
         String paramsStr = matcher.group(3).trim();
 
         List<ParamDef> params = parseParams(paramsStr);
-        List<String> rawInputs = parseInputValues(input);
+        ParsedInput parsed = parseInput(input);
 
         StringBuilder mainMethod = new StringBuilder();
         mainMethod.append("\n    // Auto-generated driver for LeetCode by CodeTrace\n");
@@ -57,7 +57,7 @@ public class LeetCodeHarnessService {
         List<String> argNames = new ArrayList<>();
         for (int i = 0; i < params.size(); i++) {
             ParamDef p = params.get(i);
-            String rawVal = i < rawInputs.size() ? rawInputs.get(i) : null;
+            String rawVal = parsed.getValueFor(p.name, i);
             String initExpr = generateJavaInitExpr(p.type, rawVal);
             mainMethod.append("        ").append(p.type).append(" ").append(p.name)
                     .append(" = ").append(initExpr).append(";\n");
@@ -113,7 +113,7 @@ public class LeetCodeHarnessService {
         String paramsStr = matcher.group(3).trim();
 
         List<ParamDef> params = parseParams(paramsStr);
-        List<String> rawInputs = parseInputValues(input);
+        ParsedInput parsed = parseInput(input);
 
         StringBuilder mainFunc = new StringBuilder();
         mainFunc.append("\n// Auto-generated driver for LeetCode by CodeTrace\n");
@@ -123,7 +123,7 @@ public class LeetCodeHarnessService {
         List<String> argNames = new ArrayList<>();
         for (int i = 0; i < params.size(); i++) {
             ParamDef p = params.get(i);
-            String rawVal = i < rawInputs.size() ? rawInputs.get(i) : null;
+            String rawVal = parsed.getValueFor(p.name, i);
             String initExpr = generateCppInitExpr(p.type, rawVal);
             String cleanType = p.type.replace("&", "").trim();
             mainFunc.append("    ").append(cleanType).append(" ").append(p.name)
@@ -149,7 +149,8 @@ public class LeetCodeHarnessService {
             return code;
         }
 
-        List<String> rawInputs = parseInputValues(input);
+        ParsedInput parsed = parseInput(input);
+        List<String> rawInputs = parsed.getPositional();
         String rawInputsJson = "[ " + String.join(", ", rawInputs.stream().map(s -> {
             if (s.startsWith("[") || s.startsWith("{") || s.matches("-?\\d+(\\.\\d+)?") || s.equals("true") || s.equals("false") || s.equals("null")) {
                 return s;
@@ -220,31 +221,66 @@ public class LeetCodeHarnessService {
         return list;
     }
 
-    private List<String> parseInputValues(String input) {
-        List<String> values = new ArrayList<>();
-        if (input == null || input.trim().isEmpty()) {
-            return values;
-        }
+    public static class ParsedInput {
+        private final Map<String, String> named = new LinkedHashMap<>();
+        private final List<String> positional = new ArrayList<>();
 
-        // Format 1: key = val, key2 = val2
-        if (input.contains("=")) {
-            Pattern kvPattern = Pattern.compile("[A-Za-z0-9_]+\\s*=\\s*(\\[[\\s\\S]*?\\]|\"[^\"]*\"|[^,\\n]+)");
-            Matcher m = kvPattern.matcher(input);
-            while (m.find()) {
-                values.add(m.group(1).trim());
+        public void put(String key, String value) {
+            if (key != null && !key.trim().isEmpty()) {
+                String normalizedKey = key.trim()
+                        .replaceAll("^(?:int|long|double|float|char|boolean|String|vector<[^>]+>|\\[\\]|\\*)+\\s*", "")
+                        .replaceAll("[\\[\\]]", "")
+                        .trim()
+                        .toLowerCase();
+                named.put(normalizedKey, value.trim());
             }
-            if (!values.isEmpty()) return values;
+            positional.add(value.trim());
         }
 
-        // Format 2: line by line
+        public String getValueFor(String paramName, int index) {
+            if (paramName != null) {
+                String cleanName = paramName.replaceAll("[\\[\\]]", "").trim().toLowerCase();
+                if (named.containsKey(cleanName)) {
+                    return named.get(cleanName);
+                }
+            }
+            if (index < positional.size()) {
+                return positional.get(index);
+            }
+            return null;
+        }
+
+        public List<String> getPositional() {
+            return positional;
+        }
+    }
+
+    private ParsedInput parseInput(String input) {
+        ParsedInput parsed = new ParsedInput();
+        if (input == null || input.trim().isEmpty()) {
+            return parsed;
+        }
+
+        if (input.contains("=")) {
+            Pattern kvPattern = Pattern.compile("(?<=^|[,\\n])\\s*([A-Za-z0-9_\\[\\]*\\s]+?)\\s*=\\s*(\\[[\\s\\S]*?\\]|\"[^\"]*\"|\\{[^\\}]*\\}|[^,\\n]+)");
+            Matcher m = kvPattern.matcher(input);
+            boolean found = false;
+            while (m.find()) {
+                found = true;
+                parsed.put(m.group(1), m.group(2));
+            }
+            if (found) return parsed;
+        }
+
+        // Line-by-line fallback
         String[] lines = input.split("\n");
         for (String line : lines) {
             String l = line.trim();
             if (!l.isEmpty()) {
-                values.add(l);
+                parsed.put(null, l);
             }
         }
-        return values;
+        return parsed;
     }
 
     private String generateJavaInitExpr(String type, String raw) {
@@ -263,9 +299,9 @@ public class LeetCodeHarnessService {
         if (cleanType.equals("int[]")) {
             if (raw != null && raw.startsWith("[") && raw.endsWith("]")) {
                 String inner = raw.substring(1, raw.length() - 1).trim();
-                return "new int[]{" + inner + "}";
+                return inner.isEmpty() ? "new int[]{}" : "new int[]{" + inner + "}";
             }
-            return "new int[]{2, 7, 11, 15}";
+            return "new int[]{}";
         }
 
         if (cleanType.equals("int")) {
@@ -315,9 +351,9 @@ public class LeetCodeHarnessService {
         if (cleanType.contains("vector<int>")) {
             if (raw != null && raw.startsWith("[") && raw.endsWith("]")) {
                 String inner = raw.substring(1, raw.length() - 1).trim();
-                return "{" + inner + "}";
+                return inner.isEmpty() ? "{}" : "{" + inner + "}";
             }
-            return "{2, 7, 11, 15}";
+            return "{}";
         }
 
         if (cleanType.equals("int")) {

@@ -21,8 +21,8 @@ When solving DSA problems, logic bugs often hide in subtle index off-by-one erro
 * Dynamic pointer arrows above arrays (`left ↓`, `right ↓`, `mid ↓`)
 * 2D dynamic programming grid matrices
 * Linked lists with node chains and pointer badges (`head`, `curr`, `prev`)
-* Binary trees rendered in hierarchical view
-* Directed graphs with live visited-vertex highlights
+* Hierarchical binary trees and N-ary trees with live recursion call stack path tracing
+* Interactive SVG graph canvas with circular layout, edge weights, and live $(u \to v)$ traversal highlights
 * Incremental program output (`stdout`) at each step
 
 ---
@@ -84,38 +84,54 @@ CodeTrace automatically detects the style of your code and adapts:
 * **LeetCode Mode (Function-Only `class Solution`)**:
   * You can paste pure `class Solution` code with **no `main()` method**.
   * Works across **Java, C++, and Python**.
-  * **Linked Lists & Trees Supported Out of the Box**:
-    * **Linked Lists**: Accepts `head = [1, 2, 3, 4, 5]`
-    * **Binary Trees**: Accepts `root = [3, 9, 20, null, null, 15, 7]`
-    * **N-ary Trees**: Accepts `root = [1, null, 3, 2, 4, null, 5, 6]`
-    * Auxiliary node definitions (`class ListNode`, `class TreeNode`, `struct ListNode`, `struct TreeNode`) can be **kept, commented out (like on LeetCode/GFG), or omitted completely** — CodeTrace automatically provides or adapts them across all 3 languages!
-  * Accepts LeetCode test case formats directly in the input box:
-    ```text
-    nums = [2, 7, 11, 15], target = 9
-    ```
-    or for linked lists:
-    ```text
-    head = [1, 2, 3, 4, 5]
-    ```
-    or for trees:
-    ```text
-    root = [1, null, 3, 2, 4, null, 5, 6]
-    ```
-    or line-by-line:
-    ```text
-    [2, 7, 11, 15]
-    9
-    ```
+  * **Supported Data Structures Out of the Box**:
+    * **Graphs**: Multi-dimensional matrices and adjacency lists:
+      ```text
+      n = 3, edges = [[0,1,1],[1,2,1],[0,2,3]], labels = "aab", k = 1
+      ```
+    * **Binary Trees**: Level-order array representation:
+      ```text
+      root = [3, 9, 20, null, null, 15, 7]
+      ```
+    * **N-ary Trees**: LeetCode format with `null` group delimiters:
+      ```text
+      root = [1, null, 3, 2, 4, null, 5, 6]
+      ```
+    * **Linked Lists**: Node arrays:
+      ```text
+      head = [1, 2, 3, 4, 5]
+      ```
+    * **1D & 2D Arrays**: Named or newline-delimited inputs:
+      ```text
+      arr = [2, 1, 3, 5, 0, 1, 4], totalTime = 3
+      ```
+  * **Auxiliary Classes & Structs**: Helper classes (`class TreeNode`, `class ListNode`, `class Node`, `class Pair`, `struct Edge`) can be **kept, commented out (like on LeetCode/GFG), or omitted completely** — CodeTrace automatically provides or normalizes them across all 3 languages!
+  * **Bracket-Balanced Tokenizer**: Uses an exact nesting depth scanner that robustly handles multi-dimensional arrays (`int[][]`, `int[][][]`), quoted strings containing commas, and arbitrary key-value assignments without truncation.
   * CodeTrace automatically synthesizes a driver `main()` method behind the scenes, instantiates your class, injects parsed parameters, and steps through your algorithm line by line.
 
 ### 3. Specialized DSA Inspectors
-* **Array & Two-Pointer Visualizer**: Automatically detects 1D arrays and points integer variables (like `i`, `j`, `left`, `right`, `low`, `high`, `mid`, `ans`) directly at their respective indices.
-* **2D Grid & Matrix Visualizer**: Renders 2D arrays or DP matrices into an interactive table.
+* **Interactive Graph Visualizer (Canvas & Adjacency List)**:
+  * **Visual SVG Canvas**: Renders vertices and directed edges in a symmetrical circular layout. Displays edge weights and vertex character labels (`0 ('a')`).
+  * **Live Traversal Highlights**:
+    * **Active Node ($u$)**: Glowing amber circle with pulsating ping ring and `ACTIVE [u]` badge.
+    * **Active Neighbor ($v$)**: Sky-blue circle with `NEIGHBOR [v]` badge.
+    * **Active Edge ($u \to v$)**: Flowing animated dashed golden stroke with directional arrow.
+    * **Visited / Settled Nodes**: Emerald green with shortest distance indicators (e.g. `d: 0`, `d: 1`, `d: 2`).
+  * **Dual-View Toggle**: Switch between interactive SVG canvas and card-based adjacency list with a single click.
+  * **Clean Workspace**: Automatically hides redundant raw `edges` 2D matrices when the visual graph is active.
+* **Tree Visualizer (Binary & N-ary)**:
+  * Automatically renders hierarchical tree structures for both binary trees (`left`, `right`) and N-ary trees (`children`).
+  * Traces recursion stack paths: highlights active node, call stack ancestor path, visited nodes, and dynamic base case badges (`node == null`).
+  * Automatically hides 1D array inspector during tree recursion to prevent screen clutter.
 * **Linked List Visualizer**: Detects objects with `.next` pointers and displays linked node chains (`[val: 1 | next] → [val: 2 | next] → null`) with pointer badges (`head`, `curr`, `prev`).
-* **Tree Visualizer (Binary & N-ary)**: Automatically renders interactive hierarchical tree structures for both binary trees (`left`, `right`) and N-ary trees (`children`).
-* **Graph & Adjacency List Visualizer**: Visualizes graphs from dictionaries or 2D vectors, highlighting visited nodes in real time.
+* **Array & Two-Pointer Visualizer**: Automatically detects 1D arrays and points integer variables (like `i`, `j`, `left`, `right`, `low`, `high`, `mid`, `ans`) directly at their respective indices.
+* **2D Grid & Matrix Visualizer**: Renders 2D arrays or DP matrices into an interactive table with hover cells.
 
-### 3. Built-in Safeguards
+### 4. UI Ergonomics & Viewport Stability
+* **Zero-Jump Viewport Containment**: CodeMirror editor and visualizer panels scroll independently within a strict `100vh` viewport. Stepping through lines deep in large codebases (50–100+ lines) never causes the browser window to scroll or jump to the bottom.
+* **Clean Code Workspace**: One-click "Clear" button to reset editor and inputs, clean starter templates for Java, C++, and Python, and live executing line indicators.
+
+### 5. Built-in Safeguards
 * **Step Limit Protection**: Halts execution if steps exceed a configurable ceiling (e.g., 1,000 steps), protecting against infinite loops.
 * **Deadlock-Free Streaming**: Piped subprocesses stream stdout directly to temporary files, preventing OS pipe buffer deadlocks on large traces.
 
@@ -192,10 +208,10 @@ Open your browser and navigate to:
 http://localhost:8080
 ```
 
-1. Select a pre-loaded template (e.g. **Python: Graph BFS**, **Java: Two Pointers**, **C++: Binary Search**).
-2. Enter your custom test case in the **Standard Input (stdin)** box.
+1. Select your language (**Java**, **C++**, or **Python**) and paste your LeetCode solution or CP code.
+2. Enter your test case (named parameters like `n = 3, edges = [[0,1,1],[1,2,1],[0,2,3]], labels = "aab", k = 1` or standard stdin) in the **Standard Input (stdin)** box.
 3. Click **"Visualize Execution"**.
-4. Use the **Play / Pause** buttons or **Arrow Keys (`←` / `→`)** to step through execution!
+4. Use the **Play / Pause** buttons or **Arrow Keys (`←` / `→`)** to step through execution, scrub the timeline slider, and inspect the live visualizers!
 
 ---
 

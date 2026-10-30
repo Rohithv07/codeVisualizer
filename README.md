@@ -76,7 +76,25 @@ flowchart TD
 * **C++ (C++17)**: Compiles with `clang++ -g -O0` and orchestrates **LLDB** via its Python API to extract `std::vector`, raw arrays, pointers, and primitives.
 * **Python (3.9+)**: Leverages `sys.settrace()` to capture local scopes, lists, dicts, sets, and custom classes.
 
-### 2. Specialized DSA Inspectors
+### 2. Dual Platform Support: Codeforces & LeetCode
+CodeTrace automatically detects the style of your code and adapts:
+* **Competitive Programming Mode (Codeforces, AtCoder, CSES)**:
+  * Full programs containing standard `main()` methods.
+  * Reads from standard input (`cin`, `Scanner`, `sys.stdin`) and outputs to `stdout`.
+* **LeetCode Mode (Function-Only `class Solution`)**:
+  * You can paste pure `class Solution` code with **no `main()` method**.
+  * Accepts LeetCode test case formats directly in the input box:
+    ```text
+    nums = [2, 7, 11, 15], target = 9
+    ```
+    or line-by-line:
+    ```text
+    [2, 7, 11, 15]
+    9
+    ```
+  * CodeTrace automatically synthesizes a driver `main()` method behind the scenes, instantiates your class, injects parsed parameters, and steps through your algorithm line by line.
+
+### 3. Specialized DSA Inspectors
 * **Array & Two-Pointer Visualizer**: Automatically detects 1D arrays and points integer variables (like `i`, `j`, `left`, `right`, `low`, `high`, `mid`, `ans`) directly at their respective indices.
 * **2D Grid & Matrix Visualizer**: Renders 2D arrays or DP matrices into an interactive table.
 * **Linked List Visualizer**: Detects objects with `.next` pointers and displays linked node blocks (`[val: 1 | next] → [val: 2 | next] → null`) with pointer badges.

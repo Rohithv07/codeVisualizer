@@ -304,16 +304,19 @@
                     </div>
                 </div>
 
-                <!-- 3. Array & Pointers Visualizer -->
+                <!-- 3. Array & String / Pointers Visualizer -->
                 <div id="arrayVisualizerCard" class="bg-slate-900 border border-slate-800 rounded-lg p-4 shadow-sm hidden">
                     <div class="flex items-center justify-between border-b border-slate-800 pb-2 mb-3">
-                        <h3 class="text-xs font-bold text-sky-400 uppercase tracking-wider flex items-center gap-1.5">
-                            <i data-lucide="layers" class="w-3.5 h-3.5"></i> Array / Two Pointers Inspector
-                        </h3>
+                        <div class="flex items-center gap-2">
+                            <h3 class="text-xs font-bold text-sky-400 uppercase tracking-wider flex items-center gap-1.5">
+                                <i data-lucide="layers" class="w-3.5 h-3.5"></i> Array & String / Pointers Inspector
+                            </h3>
+                            <span id="arrayTypeBadge" class="text-[10px] font-mono px-2 py-0.5 rounded bg-sky-500/10 text-sky-400 border border-sky-500/20">Active</span>
+                        </div>
                         <span id="arrayVarName" class="text-xs font-mono text-slate-400"></span>
                     </div>
                     <!-- Visual Array Container -->
-                    <div id="arrayContainer" class="flex flex-wrap gap-2 py-4 items-center justify-start overflow-x-auto">
+                    <div id="arrayContainer" class="flex flex-col gap-3 py-2 overflow-x-auto">
                         <!-- Dynamic Array Elements injected here -->
                     </div>
                 </div>
@@ -614,70 +617,144 @@ public:
         }
 
         function renderArrayView(variables) {
-            // If tree visualizer or graph visualizer is active, hide the array visualizer card completely
-            if ((canonicalTree && canonicalTree.root) || (canonicalGraph && canonicalGraph.nodes.length > 0)) {
+            if (!variables) {
                 arrayVisualizerCard.classList.add('hidden');
                 return;
             }
 
-            // Find 1D array variable (first array that is not a matrix and has only primitive values)
-            let targetArray = null;
-            let arrayName = '';
+            // Collect candidate 1D arrays, lists, and strings
+            const sequences = [];
+
             for (const [k, v] of Object.entries(variables)) {
-                if ((v.type === 'array' || v.type === 'list') && !v.isMatrix && v.values && v.values.length > 0) {
+                if (!v) continue;
+                const lower = k.toLowerCase();
+
+                // Skip internal runner variables
+                if (k.startsWith('__') || lower === 'args') continue;
+                // If graph visualizer is active, skip raw edges or adjacency structures from array card
+                if (canonicalGraph && canonicalGraph.nodes.length > 0 && (lower === 'edges' || lower === 'graph' || lower === 'adj')) continue;
+
+                // 1. Array or List of primitives
+                if ((v.type === 'array' || v.type === 'list' || v.type === 'vector') && !v.isMatrix && Array.isArray(v.values)) {
                     // Filter out arrays of complex objects (like TreeNode, ListNode, Pair)
                     const hasObjects = v.values.some(elem => elem && (elem.type === 'object' || elem.fields));
                     if (!hasObjects) {
-                        targetArray = v;
-                        arrayName = k;
-                        break;
+                        sequences.push({
+                            name: k,
+                            type: v.type,
+                            length: v.length !== undefined ? v.length : v.values.length,
+                            isString: false,
+                            values: v.values.map(elem => elem.repr !== undefined ? elem.repr : String(elem.value !== undefined ? elem.value : elem))
+                        });
+                    }
+                }
+
+                // 2. String variable
+                const isStringType = v.type === 'String' || v.type === 'string' || v.type === 'str' || (typeof v.type === 'string' && v.type.toLowerCase().includes('string'));
+                if (isStringType && typeof v.value === 'string') {
+                    // Skip I/O scanner/reader/builder objects that might expose a string
+                    if (lower.includes('reader') || lower.includes('scanner') || lower.includes('builder') || lower.includes('stream') || lower.includes('writer')) continue;
+                    const str = v.value;
+                    if (str.length <= 100) {
+                        const chars = [];
+                        for (let i = 0; i < str.length; i++) {
+                            chars.push(str.charAt(i));
+                        }
+                        sequences.push({
+                            name: k,
+                            type: 'String',
+                            length: str.length,
+                            isString: true,
+                            values: chars
+                        });
                     }
                 }
             }
 
-            if (!targetArray) {
+            if (sequences.length === 0) {
                 arrayVisualizerCard.classList.add('hidden');
                 return;
             }
 
             arrayVisualizerCard.classList.remove('hidden');
-            arrayVarName.textContent = `${arrayName} [length: ${targetArray.length}]`;
 
-            // Detect integer pointer variables pointing to array indices (e.g. left, right, i, j, mid, low, high, ans)
-            const pointersByIndex = {};
+            // Find all integer pointers in scope (e.g. i, j, k, left, right, mid, low, high, idx, index, p, q, num, ptr)
+            const intPointers = {};
             for (const [k, v] of Object.entries(variables)) {
-                if (k === arrayName) continue;
-                if ((v.type === 'int' || v.type === 'Integer') && typeof v.value === 'number') {
-                    const idx = v.value;
-                    if (idx >= 0 && idx < targetArray.length) {
-                        if (!pointersByIndex[idx]) pointersByIndex[idx] = [];
-                        pointersByIndex[idx].push(k);
-                    }
+                if ((v.type === 'int' || v.type === 'Integer' || v.type === 'long' || v.type === 'short' || v.type === 'byte' || typeof v.value === 'number') && typeof v.value === 'number') {
+                    intPointers[k] = v.value;
                 }
             }
 
-            arrayContainer.innerHTML = targetArray.values.map((elem, idx) => {
-                const valStr = elem.repr || String(elem.value);
-                const ptrs = pointersByIndex[idx] || [];
-                const pointerBadges = ptrs.map(p => `
-                    <span class="bg-amber-500/20 text-amber-400 border border-amber-500/40 px-1.5 py-0.5 rounded text-[10px] font-bold">
-                        ${escapeHtml(p)} ↓
-                    </span>
-                `).join('');
+            // Update header badge
+            const typeBadge = document.getElementById('arrayTypeBadge');
+            if (typeBadge) {
+                const types = [...new Set(sequences.map(s => s.isString ? 'String' : 'Array'))];
+                typeBadge.textContent = types.join(' & ');
+            }
 
-                const isPointed = ptrs.length > 0;
-                return `
-                    <div class="flex flex-col items-center">
-                        <div class="h-6 flex items-center space-x-1 mb-1">
-                            ${pointerBadges}
+            const varNameLabel = document.getElementById('arrayVarName');
+            if (varNameLabel) {
+                varNameLabel.textContent = sequences.map(s => `${s.name} [len: ${s.length}]`).join(', ');
+            }
+
+            // Render each sequence
+            let html = '';
+            sequences.slice(0, 3).forEach((seq, seqIdx) => {
+                // Map pointers to indices in this sequence
+                const pointersByIndex = {};
+                for (const [pName, pVal] of Object.entries(intPointers)) {
+                    if (pName === seq.name) continue;
+                    if (pVal >= 0 && pVal < seq.length) {
+                        if (!pointersByIndex[pVal]) pointersByIndex[pVal] = [];
+                        pointersByIndex[pVal].push(pName);
+                    }
+                }
+
+                const isMulti = sequences.length > 1;
+
+                html += `
+                    <div class="flex flex-col space-y-1.5 ${seqIdx > 0 ? 'pt-3 border-t border-slate-800/80' : ''}">
+                        ${isMulti ? `
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs font-mono font-bold ${seq.isString ? 'text-pink-400' : 'text-sky-400'}">${escapeHtml(seq.name)}</span>
+                                <span class="text-[10px] font-mono px-1.5 py-0.2 rounded bg-slate-800 text-slate-400 border border-slate-700">${escapeHtml(seq.type)}, length: ${seq.length}</span>
+                            </div>
+                        ` : ''}
+                        <div class="flex items-center gap-2 overflow-x-auto py-2 px-1">
+                            ${seq.values.length === 0 ? `
+                                <span class="text-xs font-mono text-slate-500 italic py-2 px-1">(empty ${seq.isString ? 'string' : 'array'})</span>
+                            ` : seq.values.map((valStr, idx) => {
+                                const ptrs = pointersByIndex[idx] || [];
+                                const isPointed = ptrs.length > 0;
+                                const pointerBadges = ptrs.map(p => `
+                                    <span class="bg-amber-500/20 text-amber-400 border border-amber-500/40 px-1.5 py-0.5 rounded text-[10px] font-bold shadow-sm whitespace-nowrap">
+                                        ${escapeHtml(p)} ↓
+                                    </span>
+                                `).join('');
+
+                                const cellStyle = isPointed
+                                    ? 'border-amber-400 bg-amber-500/20 text-amber-200 ring-2 ring-amber-400/50 shadow-md shadow-amber-500/20 font-bold scale-105'
+                                    : 'border-slate-700 bg-slate-800/90 text-slate-200 font-semibold hover:border-slate-600';
+
+                                return `
+                                    <div class="flex flex-col items-center flex-shrink-0">
+                                        <div class="h-6 flex items-center space-x-1 mb-1">
+                                            ${pointerBadges}
+                                        </div>
+                                        <div class="min-w-[44px] h-11 px-2.5 rounded-lg border ${cellStyle} flex items-center justify-center font-mono text-sm transition-all duration-150">
+                                            ${seq.isString ? `'${escapeHtml(valStr)}'` : escapeHtml(valStr)}
+                                        </div>
+                                        <span class="text-[10px] font-mono ${isPointed ? 'text-amber-400 font-bold' : 'text-slate-500'} mt-1">[${idx}]</span>
+                                    </div>
+                                `;
+                            }).join('')}
                         </div>
-                        <div class="w-14 h-14 rounded-md border ${isPointed ? 'border-amber-400 bg-amber-500/10 shadow-lg shadow-amber-500/10' : 'border-slate-700 bg-slate-800'} flex items-center justify-center text-sm font-mono font-bold text-white transition-all">
-                            ${escapeHtml(valStr)}
-                        </div>
-                        <span class="text-[11px] font-mono text-slate-500 mt-1">[${idx}]</span>
                     </div>
                 `;
-            }).join('');
+            });
+
+            arrayContainer.innerHTML = html;
         }
 
         function renderMatrixView(variables) {
@@ -1129,8 +1206,8 @@ public:
             for (const step of data.steps) {
                 if (!step.variables) continue;
                 const g = extractGraphFromVariables(step.variables);
-                if (g) {
-                    const score = g.nodes.length * 10 + g.edges.length;
+                if (g && g.edges && g.edges.length > 0) {
+                    const score = g.edges.length * 10 + g.nodes.length;
                     if (score > maxScore) {
                         maxScore = score;
                         bestGraph = g;
@@ -1138,7 +1215,7 @@ public:
                 }
             }
 
-            if (bestGraph && bestGraph.nodes.length > 0) {
+            if (bestGraph && bestGraph.edges && bestGraph.edges.length > 0) {
                 canonicalGraph = bestGraph;
             }
         }
@@ -1160,22 +1237,22 @@ public:
                 if (lower.includes('label') && (v.type === 'String' || typeof v.value === 'string')) {
                     labelsStr = v.value;
                 }
-                if ((lower.includes('adj') || lower.includes('graph') || lower === 'g') && 
+                // Specifically identify graph / adjacency variables (do not match generic single letter 'g')
+                if ((lower === 'graph' || lower === 'adj' || lower === 'adjlist' || lower.includes('graph') || lower.includes('adj')) && 
                     (v.type === 'array' || v.type === 'list' || v.type === 'dict')) {
                     graphVar = v;
                     graphName = k;
                 }
-                if ((lower.includes('edge') || lower === 'edges') && v.isMatrix && Array.isArray(v.values)) {
+                if ((lower === 'edges' || lower.includes('edge')) && v.isMatrix && Array.isArray(v.values)) {
                     edgesVar = v;
                 }
             }
 
+            // A graph MUST have an explicit graph structure (adjacency list or edges matrix)
+            if (!graphVar && !edgesVar) return null;
+
             const nodeSet = new Set();
             const edges = [];
-
-            if (typeof nVal === 'number' && nVal > 0 && nVal <= 50) {
-                for (let i = 0; i < nVal; i++) nodeSet.add(i);
-            }
 
             if (graphVar) {
                 const dictMap = graphVar.entries || graphVar.fields || 
@@ -1223,7 +1300,12 @@ public:
                 }
             }
 
-            if (nodeSet.size === 0 && edges.length === 0) return null;
+            // A real graph MUST have edges!
+            if (edges.length === 0) return null;
+
+            if (typeof nVal === 'number' && nVal > 0 && nVal <= 50) {
+                for (let i = 0; i < nVal; i++) nodeSet.add(i);
+            }
 
             const sortedNodes = Array.from(nodeSet).sort((a, b) => {
                 if (typeof a === 'number' && typeof b === 'number') return a - b;

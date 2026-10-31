@@ -622,6 +622,12 @@ public:
                 return;
             }
 
+            // If tree visualizer is active, hide array view (tree problems focus on recursion and tree structure; 1-element helper arrays are in Variables table)
+            if (canonicalTree && canonicalTree.root) {
+                arrayVisualizerCard.classList.add('hidden');
+                return;
+            }
+
             // Collect candidate 1D arrays, lists, and strings
             const sequences = [];
 
@@ -894,7 +900,7 @@ public:
 
         function getTreeSize(node, seen = new Set()) {
             if (!node || node.type !== 'object' || !node.fields) return 0;
-            const id = node.id || (node.fields.val ? String(node.fields.val.value) : Math.random());
+            const id = node.id || node;
             if (seen.has(id)) return 0;
             seen.add(id);
 
@@ -996,12 +1002,12 @@ public:
                 lucide.createIcons();
             }
 
-            // Only update tree root if current step holds an equally complete or larger tree (e.g. tree mutation)
+            // Only update tree root if current step holds a larger tree or same-root mutated tree
             if (step.variables) {
-                for (const v of Object.values(step.variables)) {
+                for (const [k, v] of Object.entries(step.variables)) {
                     if (isTreeNodeObject(v)) {
                         const count = getTreeSize(v);
-                        if (count >= canonicalTree.size) {
+                        if (count > canonicalTree.size || (count === canonicalTree.size && (k === 'root' || (v.id && canonicalTree.root.id && v.id === canonicalTree.root.id)))) {
                             canonicalTree.root = v;
                             canonicalTree.size = count;
                         }
@@ -1013,9 +1019,9 @@ public:
             let activeNode = null;
             let activeVarName = '';
             let isNullBaseCase = false;
+            const priorityNames = ['node', 'root', 'curr', 'cur', 'p', 'q', 'child'];
 
             if (step.variables) {
-                const priorityNames = ['node', 'root', 'curr', 'cur', 'p', 'q', 'child'];
                 for (const name of priorityNames) {
                     const v = step.variables[name];
                     if (v) {
@@ -1058,10 +1064,32 @@ public:
                 }
             }
 
-            // Compute call stack path from root down to activeNodeId
+            // If at null base case, find the caller/parent node to keep stack path lit
+            let parentNodeId = null;
+            let parentNodeVal = null;
+            if (isNullBaseCase && traceData && traceData.steps) {
+                for (let i = stepIndex - 1; i >= 0; i--) {
+                    const prevStep = traceData.steps[i];
+                    if (!prevStep || !prevStep.variables) continue;
+                    for (const name of priorityNames) {
+                        const pv = prevStep.variables[name];
+                        if (isTreeNodeObject(pv)) {
+                            parentNodeId = pv.id;
+                            const pvObj = pv.fields?.val || pv.fields?.data || {};
+                            parentNodeVal = pvObj.repr !== undefined ? pvObj.repr : pvObj.value;
+                            break;
+                        }
+                    }
+                    if (parentNodeId) break;
+                }
+            }
+
+            // Compute call stack path from root down to activeNodeId (or parent if at base case)
             const callStackPathIds = new Set();
             if (activeNodeId) {
                 findPathToNode(canonicalTree.root, activeNodeId, callStackPathIds);
+            } else if (parentNodeId) {
+                findPathToNode(canonicalTree.root, parentNodeId, callStackPathIds);
             }
 
             // Update status & type badges
@@ -1073,9 +1101,10 @@ public:
 
             if (statusBadge) {
                 if (isNullBaseCase) {
+                    const parentHint = (parentNodeVal !== null && parentNodeVal !== undefined) ? `(child of node ${escapeHtml(parentNodeVal)})` : '';
                     statusBadge.innerHTML = `
                         <span class="w-2 h-2 rounded-full bg-rose-400 animate-ping"></span>
-                        <span class="text-rose-300 font-bold">Base Case: ${escapeHtml(activeVarName)} == null</span>
+                        <span class="text-rose-300 font-bold">Base Case: ${escapeHtml(activeVarName)} == null ${parentHint}</span>
                     `;
                 } else if (activeNode) {
                     const valObj = activeNode.fields.val || activeNode.fields.data || { repr: '?' };

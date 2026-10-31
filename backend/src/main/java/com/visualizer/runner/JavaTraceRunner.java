@@ -151,6 +151,13 @@ public class JavaTraceRunner implements LanguageRunner {
                     os.write("\n".getBytes(StandardCharsets.UTF_8));
                 }
                 os.flush();
+                try {
+                    os.close();
+                } catch (IOException ignored) {}
+            } else {
+                try {
+                    vmProcess.getOutputStream().close();
+                } catch (IOException ignored) {}
             }
 
             // Capture stdout

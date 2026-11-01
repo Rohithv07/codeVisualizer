@@ -10,6 +10,10 @@
 > **Visualize what your code is *actually* doing, step-by-step.**  
 > Designed specifically for competitive programmers (Codeforces, LeetCode, CodeChef) who hit `Wrong Answer` and need to inspect variable states, array pointers, trees, and graphs without manual print debugging.
 
+<div align="center">
+  <img src="assets/demo.gif" alt="CodeTrace Flow - Step-by-Step DSA Execution Tracing & Visualization" width="100%" />
+</div>
+
 ---
 
 ## 🌟 Why CodeTrace?
@@ -120,10 +124,19 @@ CodeTrace automatically detects the style of your code and adapts:
     * **Visited / Settled Nodes**: Emerald green with shortest distance indicators (e.g. `d: 0`, `d: 1`, `d: 2`).
   * **Dual-View Toggle**: Switch between interactive SVG canvas and card-based adjacency list with a single click.
   * **Clean Workspace**: Automatically hides redundant raw `edges` 2D matrices when the visual graph is active.
+
+  <p align="center">
+    <img src="assets/demo-graph.gif" alt="Interactive Graph Traversal Visualization" width="90%" />
+  </p>
+
 * **Tree Visualizer (Binary & N-ary)**:
   * Automatically renders hierarchical tree structures for both binary trees (`left`, `right`) and N-ary trees (`children`).
   * Traces recursion stack paths: highlights active node, call stack ancestor path, visited nodes, and dynamic base case badges (`node == null`).
   * Automatically hides 1D array inspector during tree recursion to prevent screen clutter.
+
+  <p align="center">
+    <img src="assets/demo-tree.gif" alt="Binary Tree Recursion Tracing" width="90%" />
+  </p>
 * **Linked List Visualizer**: Detects objects with `.next` pointers and displays linked node chains (`[val: 1 | next] → [val: 2 | next] → null`) with pointer badges (`head`, `curr`, `prev`).
 * **Array & Two-Pointer Visualizer**: Automatically detects 1D arrays and points integer variables (like `i`, `j`, `left`, `right`, `low`, `high`, `mid`, `ans`) directly at their respective indices.
 * **2D Grid & Matrix Visualizer**: Renders 2D arrays or DP matrices into an interactive table with hover cells.
